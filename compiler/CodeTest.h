@@ -24,6 +24,7 @@ class  CodeTest : public ifccBaseVisitor {
         virtual antlrcpp::Any visitAssignment_decla_var(ifccParser::Assignment_decla_varContext *ctx) override;
         virtual antlrcpp::Any visitAssignment_vv(ifccParser::Assignment_vvContext *ctx) override;
         virtual antlrcpp::Any visitAssignment_vc(ifccParser::Assignment_vcContext *ctx) override;
+        virtual antlrcpp::Any visitAssignment_decla(ifccParser::Assignment_declaContext *ctx) override;
         
 };
 

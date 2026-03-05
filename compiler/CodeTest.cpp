@@ -155,3 +155,21 @@ antlrcpp::Any CodeTest::visitAssignment_vc(ifccParser::Assignment_vcContext *ctx
     }
     return 0;
 }
+
+
+
+antlrcpp::Any CodeTest::visitAssignment_decla(ifccParser::Assignment_declaContext *ctx)
+{
+    std::string name = ctx->VAR()->getText();
+
+    if (mem.find(name) == mem.end()) {
+        mem[name].index = nextOffset;
+        mem[name].used = false;
+        mem[name].decline = ctx->v1->getLine();
+        nextOffset += 4;
+        //std::cout << "# sym " << name << " -> " << mem[name].index << "\n";
+    } else {
+        erreur_.push_back("ligne " + std::to_string(mem[name].decline) + " deja declare\n");
+    }
+    return 0;
+}
