@@ -1,0 +1,4 @@
+ligne 2 var a declared but not used
+Compilation failed with 1 error(s).
+
+exit status: 0

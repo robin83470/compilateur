@@ -1,0 +1,5 @@
+ligne 2 deja declare
+ligne 2 var a declared but not used
+Compilation failed with 2 error(s).
+
+exit status: 0
