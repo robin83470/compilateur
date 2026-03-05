@@ -11,4 +11,5 @@ ifcc
 .vscode/
 .idea/
 
-
+config.mk
+ifcc-test-output/
