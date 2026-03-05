@@ -2,6 +2,11 @@
 # Each student should have a config.mk corresponding to her system.
 # Examples are  ubuntu.mk, DI.mk, fedora.mk
 # Then config.mk should be in the .gitignore of your project
+
+ifeq ($(wildcard config.mk),)
+$(error ⚠️  ATTENTION: config.mk n'existe pas! Vous devez créer votre propre config.mk pour votre système. Voir les exemples.)
+endif
+
 include config.mk
 
 CC=g++
