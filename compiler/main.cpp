@@ -50,8 +50,8 @@ int main(int argn, const char **argv)
   }
   CodeTest testVisitor;
   testVisitor.visit(tree);
-
-  CodeGenVisitor v;
+  auto memoir = testVisitor.mem;
+  CodeGenVisitor v(memoir);
   v.visit(tree);
 
   return 0;

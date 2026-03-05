@@ -11,5 +11,4 @@ ifcc
 .vscode/
 .idea/
 
-# local config
-config.mk
+
