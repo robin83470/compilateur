@@ -1,4 +1,0 @@
-line 4:0 missing '}' at '<EOF>'
-error: syntax error during parsing
-
-exit status: 1

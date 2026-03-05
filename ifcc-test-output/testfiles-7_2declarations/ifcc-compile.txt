@@ -1,5 +1,0 @@
-ligne 2 deja declare
-Warning 1
-Compilation failed with 1 error(s).
-
-exit status: 1

@@ -1,6 +1,0 @@
-input.c: In function ‘main’:
-input.c:2:4: error: expected declaration or statement at end of input
-    2 |    return 67;
-      |    ^~~~~~
-
-exit status: 1
