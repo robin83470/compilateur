@@ -2,32 +2,21 @@ grammar ifcc;
 
 axiom : prog EOF ;
 
-prog : 'int' 'main' '(' ')' '{' expr* return_stmt '}' ;
+prog : 'int' 'main' '(' ')' '{' stmt* '}' ;
 
+stmt : return_stmt | declaration_stmt | assign_stmt ;
 
-expr
-  : assignment ';'
-  ;
+return_stmt : RETURN rhs ';' ;
 
-assignment
-  : 'int' v1=VAR '=' c1=CONST  # assignment_decla_const
-  | 'int' v1=VAR '=' v2=VAR   # assignment_decla_var
-  | 'int' v1=VAR   # assignment_decla
-  | v1=VAR '=' v2=VAR   # assignment_vv
-  | v1=VAR '=' c1=CONST # assignment_vc
-  ;
-
-return_stmt
-: RETURN CONST ';' # return_const_stmt
-| RETURN VAR ';' # return_var_stmt ;
-
+declarator : ID (EQUAL rhs)? ;
+declaration_stmt : 'int' declarator (',' declarator)* ';' ;
+assign_stmt : ID EQUAL rhs ';' ;
+rhs : CONST | ID ;
 
 RETURN : 'return' ;
-VAR : [a-zA-Z_][a-zA-Z0-9_]*;
 CONST : [0-9]+ ;
 COMMENT : '/*' .*? '*/' -> skip ;
 DIRECTIVE : '#' .*? '\n' -> skip ;
 WS    : [ \t\r\n] -> channel(HIDDEN);
-
-
-
+ID : [a-zA-Z_][a-zA-Z0-9_]* ;
+EQUAL : '=' ;

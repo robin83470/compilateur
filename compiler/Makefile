@@ -2,11 +2,6 @@
 # Each student should have a config.mk corresponding to her system.
 # Examples are  ubuntu.mk, DI.mk, fedora.mk
 # Then config.mk should be in the .gitignore of your project
-
-ifeq ($(wildcard config.mk),)
-$(error ⚠️  ATTENTION: config.mk n'existe pas! Vous devez créer votre propre config.mk pour votre système. Voir les exemples.)
-endif
-
 include config.mk
 
 CC=g++
@@ -24,7 +19,7 @@ OBJECTS=build/ifccBaseVisitor.o \
 	build/ifccParser.o \
 	build/main.o \
 	build/CodeGenVisitor.o \
-	build/CodeTest.o
+	build/SymbolTableVisitor.o
 
 ifcc: $(OBJECTS)
 	@mkdir -p build
@@ -62,7 +57,7 @@ generated/ifccParser.cpp: ifcc.g4
 # view the parse tree in a graphical window
 
 # Usage: `make gui FILE=path/to/your/file.c`
-FILE ?= ../tests/testfiles/1_return42.c
+FILE ?= ../testfiles/OK/ValidPrograms/3_return_var.c
 
 gui:
 	@mkdir -p generated build

@@ -9,50 +9,51 @@
 #include "generated/ifccBaseVisitor.h"
 
 #include "CodeGenVisitor.h"
-#include "CodeTest.h"
+#include "SymbolTableVisitor.h"
 
 using namespace antlr4;
 using namespace std;
 
 int main(int argn, const char **argv)
 {
-  stringstream in;
-  if (argn==2)
-  {
-     ifstream lecture(argv[1]);
-     if( !lecture.good() )
-     {
-         cerr<<"error: cannot read file: " << argv[1] << endl ;
-         exit(1);
-     }
-     in << lecture.rdbuf();
-  }
-  else
-  {
-      cerr << "usage: ifcc path/to/file.c" << endl ;
-      exit(1);
-  }
-  
-  ANTLRInputStream input(in.str());
+    stringstream in;
+    if (argn == 2)
+    {
+        ifstream lecture(argv[1]);
+        if (!lecture.good())
+        {
+            cerr << "error: cannot read file: " << argv[1] << endl;
+            exit(1);
+        }
+        in << lecture.rdbuf();
+    }
+    else
+    {
+        cerr << "usage: ifcc path/to/file.c" << endl;
+        exit(1);
+    }
 
-  ifccLexer lexer(&input);
-  CommonTokenStream tokens(&lexer);
+    ANTLRInputStream input(in.str());
 
-  tokens.fill();
+    ifccLexer lexer(&input);
+    CommonTokenStream tokens(&lexer);
 
-  ifccParser parser(&tokens);
-  tree::ParseTree* tree = parser.axiom();
+    tokens.fill();
 
-  if(parser.getNumberOfSyntaxErrors() != 0)
-  {
-      cerr << "error: syntax error during parsing" << endl;
-      exit(1);
-  }
-  CodeTest testVisitor;
-  testVisitor.visit(tree);
-  auto memoir = testVisitor.mem;
-  CodeGenVisitor v(memoir);
-  v.visit(tree);
+    ifccParser parser(&tokens);
+    tree::ParseTree *tree = parser.axiom();
 
-  return 0;
+    if (parser.getNumberOfSyntaxErrors() != 0)
+    {
+        cerr << "error: syntax error during parsing" << endl;
+        exit(1);
+    }
+
+    SymbolTableVisitor symbolTableVisitor;
+    symbolTableVisitor.visit(tree);
+
+    CodeGenVisitor codeGen(symbolTableVisitor.symbolTable);
+    codeGen.visit(tree);
+
+    return 0;
 }

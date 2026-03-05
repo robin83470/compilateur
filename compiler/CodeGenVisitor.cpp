@@ -1,5 +1,9 @@
 #include "CodeGenVisitor.h"
 
+CodeGenVisitor::CodeGenVisitor(std::map<std::string, SymbolTableVisitor::SymbolInfo> symbols) {
+    this->symbolTable = symbols;
+}
+
 antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx) 
 {
     #ifdef __APPLE__
@@ -10,122 +14,88 @@ antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx)
     std::cout<< " main: \n" ;
     #endif
 
-    std::cout << "# prologue\n";
-    std::cout << "pushq %rbp # save %rbp on the stack\n";
-    std::cout << "movq %rsp, %rbp # define %rbp for the current function\n";
-        
-    int n = ctx->expr().size();
-    //std::cout << "# "<< n <<" children of type expr\n" ;
-    for (int i = 0; i < n; i++) {
-        visit(ctx->expr(i)); 
-    }
-    this->visit( ctx->return_stmt() );
-    
+    // Prologue
+    std::cout<< "    pushq %rbp\n" ;
+    std::cout<< "    movq %rsp, %rbp\n";
 
-    std::cout << "# epilogue\n";
-    std::cout << "popq %rbp # restore %rbp from the stack\n";
+    // Body
+    for (auto stmt : ctx->stmt()) {
+        this->visit(stmt);
+    }
+    
+    // Epilogue
+    std::cout<<  "    popq %rbp\n";
     std::cout << "    ret\n";
 
     return 0;
 }
 
 
-
-
-antlrcpp::Any CodeGenVisitor::visitReturn_const_stmt(ifccParser::Return_const_stmtContext *ctx)
+antlrcpp::Any CodeGenVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx)
 {
+    ifccParser::RhsContext *rhsCtx = ctx->rhs();
 
-    int retval = stoi(ctx->CONST()->getText());
-    
-    std::cout << "    movl $"<<retval<<", %eax\n" ;
-
-    return 0;
-
-}
-
-
-
-antlrcpp::Any CodeGenVisitor::visitReturn_var_stmt(ifccParser::Return_var_stmtContext *ctx)
-{   
-   std::string name = ctx->VAR()->getText();
-
-   int offset = mem[name].index;
-
-    std::cout << "    movl -" << offset << "(%rbp), %eax\n";
+    if (rhsCtx->CONST()) {
+        int retval = stoi(rhsCtx->CONST()->getText());
+        std::cout << "    movl $" << retval << ", %eax\n";
+    } 
+    else if (rhsCtx->ID()) {
+        std::string varName = rhsCtx->ID()->getText();
+        int offset = symbolTable[varName].index; 
+        std::cout << "    movl " << offset << "(%rbp), %eax\n"; 
+    }
 
     return 0;
 }
 
-
-
-
-antlrcpp::Any CodeGenVisitor::visitAssignment_decla_const(
-    ifccParser::Assignment_decla_constContext *ctx)
+antlrcpp::Any CodeGenVisitor::visitDeclaration_stmt(ifccParser::Declaration_stmtContext *ctx)
 {
-    std::string name = ctx->v1->getText();
-    int c = stoi(ctx->c1->getText());
-
-    int offset = mem[name].index;
-
-    std::cout << "    movl $" << c << ", -" << offset << "(%rbp)\n";
-    
+    for (auto decl : ctx->declarator()) {
+        this->visit(decl);
+    }
     return 0;
 }
 
-
-antlrcpp::Any CodeGenVisitor::visitAssignment_decla_var(ifccParser::Assignment_decla_varContext *ctx)
+antlrcpp::Any CodeGenVisitor::visitDeclarator(ifccParser::DeclaratorContext *ctx)
 {
-    std::string v1 = ctx->v1->getText();
-    std::string v2 = ctx->v2->getText();
+    if (ctx->EQUAL()) { 
+        std::string varName = ctx->ID()->getText();
+        int offset = symbolTable[varName].index;
 
+        ifccParser::RhsContext *rhsCtx = ctx->rhs();
 
-    int off1 = mem[v1].index;
-    int off2 = mem[v2].index;
-
-
-    std::cout << "    movl -" << off2 << "(%rbp), %eax\n";
-    std::cout << "    movl %eax, -" << off1 << "(%rbp)\n";
-    
+        if (rhsCtx->CONST()) {
+            int val = stoi(rhsCtx->CONST()->getText());
+            std::cout << "    movl $" << val << ", " << offset << "(%rbp)\n";
+        } 
+        else if (rhsCtx->ID()) {
+            std::string rhsName = rhsCtx->ID()->getText();
+            int rhsOffset = symbolTable[rhsName].index;
+            std::cout << "    movl " << rhsOffset << "(%rbp), %eax\n";
+            std::cout << "    movl %eax, " << offset << "(%rbp)\n";
+        }
+    }
     return 0;
-    
 }
 
-
-
-antlrcpp::Any CodeGenVisitor::visitAssignment_vv(ifccParser::Assignment_vvContext *ctx)
+antlrcpp::Any CodeGenVisitor::visitAssign_stmt(ifccParser::Assign_stmtContext *ctx)
 {
-    std::string v1 = ctx->v1->getText();
-    std::string v2 = ctx->v2->getText();
+    std::string varName = ctx->ID()->getText();
+    int offset = symbolTable[varName].index;
 
-    int off1 = mem[v1].index;
-    int off2 = mem[v2].index;
+    ifccParser::RhsContext *rhsCtx = ctx->rhs();
 
-    std::cout << "    movl -" << off2 << "(%rbp), %eax\n";
-    std::cout << "    movl %eax, -" << off1 << "(%rbp)\n";
+    if (rhsCtx->CONST()) {
+        int val = stoi(rhsCtx->CONST()->getText());
+        std::cout << "    movl $" << val << ", " << offset << "(%rbp)\n";
+    } 
+    else if (rhsCtx->ID()) {
+        std::string rhsName = rhsCtx->ID()->getText();
+        int rhsOffset = symbolTable[rhsName].index;
+        std::cout << "    movl " << rhsOffset << "(%rbp), %eax\n";
+        std::cout << "    movl %eax, " << offset << "(%rbp)\n";
+    }
 
     return 0;
 }
 
-antlrcpp::Any CodeGenVisitor::visitAssignment_vc(ifccParser::Assignment_vcContext *ctx)
-{
-    std::string v1 = ctx->v1->getText();
-    int c = stoi(ctx->c1->getText());
-
-    int offset = mem[v1].index;
-    std::cout << "    movl $" << c << ", -" << offset << "(%rbp)\n";
-    
-    return 0;
-}
-
-
-antlrcpp::Any CodeGenVisitor::visitAssignment_decla(ifccParser::Assignment_declaContext *ctx)
-{
-    std::string name = ctx->v1->getText();
-    int c = 0;
-
-    int offset = mem[name].index;
-
-    std::cout << "    movl $" << c << ", -" << offset << "(%rbp)\n";
-    
-    return 0;
-}
