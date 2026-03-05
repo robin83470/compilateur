@@ -1,0 +1,15 @@
+# build artifacts
+build/
+generated/
+*.o
+*.d
+ifcc
+
+# system/editor
+.DS_Store
+*.swp
+.vscode/
+.idea/
+
+# local config
+config.mk
