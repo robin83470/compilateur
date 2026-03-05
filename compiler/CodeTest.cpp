@@ -15,7 +15,7 @@ antlrcpp::Any CodeTest::visitProg(ifccParser::ProgContext *ctx)
         if (symbol.used) {
             //std::cout << "used " << name << " at offset " << symbol.index << "\n";
         } else {
-            erreur_.push_back("ligne " + std::to_string(symbol.decline) + " var " + name + " declared but not used\n");
+            warning_.push_back("ligne " + std::to_string(symbol.decline) + " var " + name + " declared but not used\n");
         }
     }
 
@@ -24,9 +24,13 @@ antlrcpp::Any CodeTest::visitProg(ifccParser::ProgContext *ctx)
         std::cerr << err;
     }
 
+    if (!warning_.empty()) {
+        std::cerr << "Warning " << erreur_.size() << "\n";
+    }
+
     if (!erreur_.empty()) {
         std::cerr << "Compilation failed with " << erreur_.size() << " error(s).\n";
-        return -1;
+        exit(1);
     }
 
     

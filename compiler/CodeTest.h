@@ -14,6 +14,7 @@ class  CodeTest : public ifccBaseVisitor {
 	public:
         std::unordered_map<std::string,Symbol> mem; // en octets
         std::vector<std::string> erreur_;
+        std::vector<std::string> warning_;
         int nextOffset = 0;
         CodeTest() = default;
         ~CodeTest() = default;
