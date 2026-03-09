@@ -11,13 +11,13 @@ return_stmt : RETURN rhs ';' ;
 declarator : ID (EQUAL rhs)? ;
 declaration_stmt : 'int' declarator (',' declarator)* ';' ;
 assign_stmt : ID EQUAL rhs ';' ;
-rhs : CONST | ID | expr;
 
-expr
-    : '-' expr              # Expr_moinsunaire
-    | expr ('*'|'/') expr   # Expr_multdiv
-    | expr ('+'|'-') expr   # Expr_plusmoins
-    | '(' expr ')'          # Expr_parenthese
+
+rhs : 
+    '-' rhs            # Expr_moinsunaire
+    | rhs ('*'|'/') rhs   # Expr_multdiv
+    | rhs ('+'|'-') rhs   # Expr_plusmoins
+    | '(' rhs ')'          # Expr_parenthese
     | CONST                 # Expr_const
     | ID                    # Expr_id
     ;
