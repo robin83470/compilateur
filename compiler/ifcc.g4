@@ -15,7 +15,7 @@ assign_stmt : ID EQUAL rhs ';' ;
 
 rhs : 
     '-' rhs            # Expr_moinsunaire
-    | rhs ('*'|'/') rhs   # Expr_multdiv
+    | rhs ('*'|'/'|'%') rhs   # Expr_multdiv
     | rhs ('+'|'-') rhs   # Expr_plusmoins
     | '(' rhs ')'          # Expr_parenthese
     | CONST                 # Expr_const

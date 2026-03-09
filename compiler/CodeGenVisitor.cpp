@@ -135,6 +135,24 @@ antlrcpp::Any CodeGenVisitor::visitExpr_multdiv(ifccParser::Expr_multdivContext 
         std::cout << "    cdq\n";
         std::cout << "    idivl %ebx\n";
     }
+    else if (op == "%") {
+        std::string label = "end_modulo_" + std::to_string(ctx->getStart()->getStartIndex());
+        
+        std::cout << "    cdq\n";
+        std::cout << "    idivl %ebx\n";       // Reste dans %edx
+        std::cout << "    testl %edx, %edx\n"; // On regarde si le reste est < 0
+        std::cout << "    jns " << label << "\n"; // Si positif ou nul, on saute à la fin
+        
+        // Ajustement euclidien : si reste < 0, reste = reste + abs(diviseur)
+        std::cout << "    movl %ebx, %ecx\n";
+        std::cout << "    negl %ecx\n";        // %ecx = -ebx
+        std::cout << "    cmovsl %ebx, %ecx\n"; // Si %ebx était négatif, on reprend %ebx (donc abs)
+        std::cout << "    addl %ecx, %edx\n";  // Reste final
+        
+        std::cout << label << ":\n";
+        std::cout << "    movl %edx, %eax\n";
+    }
+
 
     return 0;
 }
