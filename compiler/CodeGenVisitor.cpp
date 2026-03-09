@@ -30,21 +30,30 @@ antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx)
     return 0;
 }
 
+antlrcpp::Any CodeGenVisitor::visitExpr_const(ifccParser::Expr_constContext *ctx) {
+    std::cout << "    movl $" << ctx->CONST()->getText() << ", %eax\n";
+    return 0;
+}
 
-antlrcpp::Any CodeGenVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx)
-{
-    ifccParser::RhsContext *rhsCtx = ctx->rhs();
+antlrcpp::Any CodeGenVisitor::visitExpr_id(ifccParser::Expr_idContext *ctx) {
+    std::string name = ctx->ID()->getText();
+    int offset = symbolTable[name].index;
+    std::cout << "    movl " << offset << "(%rbp), %eax\n";
+    return 0;
+}
 
-    if (rhsCtx->CONST()) {
-        int retval = stoi(rhsCtx->CONST()->getText());
-        std::cout << "    movl $" << retval << ", %eax\n";
-    } 
-    else if (rhsCtx->ID()) {
-        std::string varName = rhsCtx->ID()->getText();
-        int offset = symbolTable[varName].index; 
-        std::cout << "    movl " << offset << "(%rbp), %eax\n"; 
-    }
+antlrcpp::Any CodeGenVisitor::visitExpr_parenthese(ifccParser::Expr_parentheseContext *ctx) {
+    return visit(ctx->expr());
+}
 
+antlrcpp::Any CodeGenVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx) {
+    visit(ctx->rhs());   // résultat en %eax
+    return 0;
+}
+
+antlrcpp::Any CodeGenVisitor::visitExpr_moinsunaire(ifccParser::Expr_moinsunaireContext *ctx) {
+    visit(ctx->expr());        // calcule l'opérande dans %eax
+    std::cout << "    negl %eax\n";   // %eax = -%eax
     return 0;
 }
 
