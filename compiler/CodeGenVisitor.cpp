@@ -147,14 +147,3 @@ antlrcpp::Any CodeGenVisitor::visitExpr_multdiv(ifccParser::Expr_multdivContext 
     return 0;
 }
 
-antlrcpp::Any CodeGenVisitor::visitExpr_moinsunaire(ifccParser::Expr_moinsunaireContext *ctx)
-{
-    visit(ctx->rhs());              // résultat dans %eax
-    std::cout << "    negl %eax\n"; // %eax = -%eax
-    return 0;
-}
-
-antlrcpp::Any CodeGenVisitor::visitExpr_parenthese(ifccParser::Expr_parentheseContext *ctx)
-{
-    return visit(ctx->rhs());
-}
