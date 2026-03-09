@@ -14,7 +14,7 @@ assign_stmt : ID EQUAL rhs ';' ;
 
 
 rhs : 
-    '-' rhs            # Expr_moinsunaire
+    ('+'|'-') rhs            # Expr_moinsunaire
     | rhs ('*'|'/'|'%') rhs   # Expr_multdiv
     | rhs ('+'|'-') rhs   # Expr_plusmoins
     | '(' rhs ')'          # Expr_parenthese
@@ -30,4 +30,3 @@ DIRECTIVE : '#' .*? '\n' -> skip ;
 WS    : [ \t\r\n] -> channel(HIDDEN);
 ID : [a-zA-Z_][a-zA-Z0-9_]* ;
 EQUAL : '=' ;
-
