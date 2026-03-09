@@ -14,12 +14,12 @@ assign_stmt : ID EQUAL rhs ';' ;
 rhs : CONST | ID | expr;
 
 expr
-    : '-' expr              # moinsunaire
-    | expr ('*'|'/') expr   # multdiv
-    | expr ('+'|'-') expr   # plusmoins
-    | '(' expr ')'          # parenthese
-    | CONST                 # constid
-    | ID                    # id
+    : '-' expr              # Expr_moinsunaire
+    | expr ('*'|'/') expr   # Expr_multdiv
+    | expr ('+'|'-') expr   # Expr_plusmoins
+    | '(' expr ')'          # Expr_parenthese
+    | CONST                 # Expr_const
+    | ID                    # Expr_id
     ;
 
 
