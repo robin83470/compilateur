@@ -101,30 +101,32 @@ antlrcpp::Any CodeGenVisitor::visitExpr_id(ifccParser::Expr_idContext *ctx)
     return 0;
 }
 
-antlrcpp::Any CodeGenVisitor:: visitExpr_multdiv(ifccParser::Expr_multdivContext *ctx)
+antlrcpp::Any CodeGenVisitor::visitExpr_multdiv(ifccParser::Expr_multdivContext *ctx)
 {
-    // gauche
-    visit(ctx->expr(0));
+    // Visite du côté gauche
+    visit(ctx->rhs(0));
+    // %eax contient maintenant le résultat du lhs
+    // On sauvegarde lhs dans %eax
 
-    std::cout << "    pushl %eax\n";
-
-    // droite
-    visit(ctx->expr(1));
-
-    std::cout << "    popl %ebx\n";
+    // Visite du côté droit
+    visit(ctx->rhs(1));
+    // %eax contient maintenant le résultat du rhs
+    // On doit charger lhs dans %ebx pour imul/idiv
+    std::cout << "    movl %eax, %ebx\n"; // déplacer rhs dans %ebx
+    std::cout << "    movl %eax, %eax\n"; // garder rhs en %eax pour idiv si besoin
 
     std::string op = ctx->children[1]->getText();
 
     if(op == "*") {
+        // imul lhs, rhs → résultat dans %eax
         std::cout << "    imull %ebx, %eax\n";
     }
     else if(op == "/") {
-        std::cout << "    movl %eax, %ecx\n";
-        std::cout << "    movl %ebx, %eax\n";
-        std::cout << "    cdq\n";
-        std::cout << "    idivl %ecx\n";
+        // rhs div lhs
+        std::cout << "    movl %ebx, %eax\n"; // mettre lhs en %eax
+        std::cout << "    cdq\n";              // étendre %eax vers %edx pour idiv
+        std::cout << "    idivl %ecx\n";      // diviser par rhs
     }
-  
 
     return 0;
 }
