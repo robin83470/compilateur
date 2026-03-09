@@ -4,7 +4,7 @@ CodeGenVisitor::CodeGenVisitor(std::map<std::string, SymbolTableVisitor::SymbolI
     this->symbolTable = symbols;
 }
 
-antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx) 
+antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx)
 {
     #ifdef __APPLE__
     std::cout<< ".globl _main\n" ;
@@ -17,14 +17,26 @@ antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx)
     // Prologue
     std::cout<< "    pushq %rbp\n" ;
     std::cout<< "    movq %rsp, %rbp\n";
+    int localBytes = 0;
+    for (const auto &entry : symbolTable) {
+        int bytes = -entry.second.index;
+        if (bytes > localBytes) {
+            localBytes = bytes;
+        }
+    }
+    int stackSize = ((localBytes + 15) / 16) * 16;
+    if (stackSize > 0) {
+        std::cout << "    subq $" << stackSize << ", %rsp\n";
+    }
 
     // Body
     for (auto stmt : ctx->stmt()) {
         this->visit(stmt);
     }
-    
+
     // Epilogue
-    std::cout<<  "    popq %rbp\n";
+    std::cout<< "    movq %rbp, %rsp\n";
+    std::cout<< "    popq %rbp\n";
     std::cout << "    ret\n";
 
     return 0;
@@ -32,22 +44,10 @@ antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx)
 
 
 antlrcpp::Any CodeGenVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx)
-{   
+{
+    // Evaluate any RHS expression; convention: result in %eax.
     visit(ctx->rhs());
     return 0;
-    // ifccParser::RhsContext *rhsCtx = ctx->rhs();
-
-    // if (rhsCtx->CONST()) {
-    //     int retval = stoi(rhsCtx->CONST()->getText());
-    //     std::cout << "    movl $" << retval << ", %eax\n";
-    // } 
-    // else if (rhsCtx->ID()) {
-    //     std::string varName = rhsCtx->ID()->getText();
-    //     int offset = symbolTable[varName].index; 
-    //     std::cout << "    movl " << offset << "(%rbp), %eax\n"; 
-    // }
-
-    // return 0;
 }
 
 antlrcpp::Any CodeGenVisitor::visitDeclaration_stmt(ifccParser::Declaration_stmtContext *ctx)
@@ -62,11 +62,12 @@ antlrcpp::Any CodeGenVisitor::visitDeclarator(ifccParser::DeclaratorContext *ctx
 {
     std::string varName = ctx->ID()->getText();
     int offset = symbolTable[varName].index;
-
     if (ctx->EQUAL()) {
-        visit(ctx->rhs());   
+
+        visit(ctx->rhs());
         std::cout << "    movl %eax, " << offset << "(%rbp)\n";
-    } else {
+    }
+    else {
         std::cout << "    movl $0, " << offset << "(%rbp)\n";
     }
 
@@ -78,7 +79,7 @@ antlrcpp::Any CodeGenVisitor::visitAssign_stmt(ifccParser::Assign_stmtContext *c
     std::string varName = ctx->ID()->getText();
     int offset = symbolTable[varName].index;
 
-    visit(ctx->rhs());   
+    visit(ctx->rhs());
     std::cout << "    movl %eax, " << offset << "(%rbp)\n";
 
     return 0;
@@ -101,40 +102,17 @@ antlrcpp::Any CodeGenVisitor::visitExpr_id(ifccParser::Expr_idContext *ctx)
     return 0;
 }
 
-antlrcpp::Any CodeGenVisitor:: visitExpr_multdiv(ifccParser::Expr_multdivContext *ctx)
-{}
-//     // gauche
-//     visit(ctx->expr(0));
-
-//     std::cout << "    pushl %eax\n";
-
-//     // droite
-//     visit(ctx->expr(1));
-
-//     std::cout << "    popl %ebx\n";
-
-//     std::string op = ctx->children[1]->getText();
-
-//     if(op == "*") {
-//         std::cout << "    imull %ebx, %eax\n";
-//     }
-//     else if(op == "/") {
-//         std::cout << "    movl %eax, %ecx\n";
-//         std::cout << "    movl %ebx, %eax\n";
-//         std::cout << "    cdq\n";
-//         std::cout << "    idivl %ecx\n";
-//
-  
-
-//     return 0;
-// }
-
-antlrcpp::Any CodeGenVisitor::visitExpr_moinsunaire(ifccParser::Expr_moinsunaireContext *ctx) {
-    visit(ctx->rhs());        // calcule l'opérande dans %eax
-    std::cout << "    negl %eax\n";   // %eax = -%eax
-    return 0;
-}
-
-antlrcpp::Any CodeGenVisitor::visitExpr_parenthese(ifccParser::Expr_parentheseContext *ctx) {
-    return visit(ctx->rhs());
+antlrcpp::Any CodeGenVisitor::visitExpr_plusmoins(ifccParser::Expr_plusmoinsContext *ctx){
+        visit(ctx->rhs(0)); // gauche dans %eax
+        std::cout << "    pushq %rax\n";
+        visit(ctx->rhs(1)); // droite dans %eax
+        std::cout << "    popq %rcx\n"; // gauche dans %ebx
+        std::string op = ctx->children[1]->getText();
+        if (op == "+") {
+            std::cout << "    addl %ecx, %eax\n"; // %eax = droite + gauche
+        } else {
+            std::cout << "    subl %eax, %ecx\n"; // %ecx = gauche - droite
+            std::cout << "    movl %ecx, %eax\n"; // résultat dans %eax
+        }
+        return 0;
 }
