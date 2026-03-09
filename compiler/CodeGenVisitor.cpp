@@ -101,3 +101,30 @@ antlrcpp::Any CodeGenVisitor::visitExpr_id(ifccParser::Expr_idContext *ctx)
     return 0;
 }
 
+antlrcpp::Any CodeGenVisitor:: visitExpr_multdiv(ifccParser::Expr_multdivContext *ctx)
+{
+    // gauche
+    visit(ctx->expr(0));
+
+    std::cout << "    pushl %eax\n";
+
+    // droite
+    visit(ctx->expr(1));
+
+    std::cout << "    popl %ebx\n";
+
+    std::string op = ctx->children[1]->getText();
+
+    if(op == "*") {
+        std::cout << "    imull %ebx, %eax\n";
+    }
+    else if(op == "/") {
+        std::cout << "    movl %eax, %ecx\n";
+        std::cout << "    movl %ebx, %eax\n";
+        std::cout << "    cdq\n";
+        std::cout << "    idivl %ecx\n";
+    }
+  
+
+    return 0;
+}
