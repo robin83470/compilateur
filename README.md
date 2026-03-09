@@ -107,6 +107,7 @@ Le compilateur supporte actuellement les fonctionnalités suivantes, validées p
 - Pas de tableaux
 - Pas de pointeurs
 - Pas d'expressions logiques ou de comparaisons
+- Pas de caractéres spéciaux dans les commentaires
 
 
 ## Dépendances
