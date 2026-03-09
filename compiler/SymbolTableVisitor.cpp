@@ -12,57 +12,75 @@ antlrcpp::Any SymbolTableVisitor::visitDeclaration_stmt(ifccParser::Declaration_
     return visitChildren(ctx);
 }
 
+
 antlrcpp::Any SymbolTableVisitor::visitAssign_stmt(ifccParser::Assign_stmtContext *ctx) {
     std::string varName = ctx->ID()->getText();
     checkVariableUsed(varName);
     symbolTable[varName].used = true;
-    
-    // Vérifier les variables utilisées dans le rhs
-    auto rhs = ctx->rhs();
-    if (rhs->ID() != nullptr) {
-        std::string rhsVar = rhs->ID()->getText();
-        checkVariableUsed(rhsVar);
-    }
-    
+
+    visit(ctx->rhs());   
+
     return 0;
 }
 
+
 antlrcpp::Any SymbolTableVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx) {
-    auto rhs = ctx->rhs();
-    if (rhs->ID() != nullptr) {
-        std::string varName = rhs->ID()->getText();
-        checkVariableUsed(varName);
-    }
-    
+    visit(ctx->rhs());
     return 0;
 }
 
 antlrcpp::Any SymbolTableVisitor::visitDeclarator(ifccParser::DeclaratorContext *ctx) {
     std::string varName = ctx->ID()->getText();
-    
+
     if (symbolTable.count(varName) > 0) {
         std::cerr << "Erreur : la variable '" << varName << "' est déjà déclarée." << std::endl;
-        exit(1); 
+        exit(1);
     }
-    
-    // Créer une nouvelle entrée dans la table des symboles
+
     currentOffset -= 4;
     SymbolInfo info;
     info.index = currentOffset;
     info.declared = true;
     info.used = false;
-    
+
     symbolTable[varName] = info;
-    
-    // Vérifier si le déclarateur a une valeur d'initialisation
+
     if (ctx->rhs() != nullptr) {
-        if (ctx->rhs()->ID() != nullptr) {
-            std::string initVar = ctx->rhs()->ID()->getText();
-            checkVariableUsed(initVar);
-        }
+        visit(ctx->rhs());   
         symbolTable[varName].used = true;
     }
-    
+
+    return 0;
+}
+
+antlrcpp::Any SymbolTableVisitor::visitExpr_id(ifccParser::Expr_idContext *ctx) {
+    std::string varName = ctx->ID()->getText();
+    checkVariableUsed(varName);
+    return 0;
+}
+
+antlrcpp::Any SymbolTableVisitor::visitExpr_const(ifccParser::Expr_constContext *ctx) {
+    return 0;
+}
+
+antlrcpp::Any SymbolTableVisitor::visitExpr_parenthese(ifccParser::Expr_parentheseContext *ctx) {
+    return visit(ctx->rhs());
+}
+
+antlrcpp::Any SymbolTableVisitor::visitExpr_plusmoins(ifccParser::Expr_plusmoinsContext *ctx) {
+    visit(ctx->rhs(0));
+    visit(ctx->rhs(1));
+    return 0;
+}
+
+antlrcpp::Any SymbolTableVisitor::visitExpr_multdiv(ifccParser::Expr_multdivContext *ctx) {
+    visit(ctx->rhs(0));
+    visit(ctx->rhs(1));
+    return 0;
+}
+
+antlrcpp::Any SymbolTableVisitor::visitExpr_moinsunaire(ifccParser::Expr_moinsunaireContext *ctx) {
+    visit(ctx->rhs());
     return 0;
 }
 

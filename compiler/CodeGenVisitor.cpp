@@ -33,7 +33,7 @@ antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx)
 
 antlrcpp::Any CodeGenVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx)
 {   
-    visit(ctx->rhs()->expr());
+    visit(ctx->rhs());
     return 0;
     // ifccParser::RhsContext *rhsCtx = ctx->rhs();
 
@@ -53,30 +53,23 @@ antlrcpp::Any CodeGenVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *c
 antlrcpp::Any CodeGenVisitor::visitDeclaration_stmt(ifccParser::Declaration_stmtContext *ctx)
 {
     for (auto decl : ctx->declarator()) {
-        this->visit(decl);
+        visit(decl);
     }
     return 0;
 }
 
 antlrcpp::Any CodeGenVisitor::visitDeclarator(ifccParser::DeclaratorContext *ctx)
 {
-    if (ctx->EQUAL()) { 
-        std::string varName = ctx->ID()->getText();
-        int offset = symbolTable[varName].index;
+    std::string varName = ctx->ID()->getText();
+    int offset = symbolTable[varName].index;
 
-        ifccParser::RhsContext *rhsCtx = ctx->rhs();
-
-        if (rhsCtx->CONST()) {
-            int val = stoi(rhsCtx->CONST()->getText());
-            std::cout << "    movl $" << val << ", " << offset << "(%rbp)\n";
-        } 
-        else if (rhsCtx->ID()) {
-            std::string rhsName = rhsCtx->ID()->getText();
-            int rhsOffset = symbolTable[rhsName].index;
-            std::cout << "    movl " << rhsOffset << "(%rbp), %eax\n";
-            std::cout << "    movl %eax, " << offset << "(%rbp)\n";
-        }
+    if (ctx->EQUAL()) {
+        visit(ctx->rhs());   
+        std::cout << "    movl %eax, " << offset << "(%rbp)\n";
+    } else {
+        std::cout << "    movl $0, " << offset << "(%rbp)\n";
     }
+
     return 0;
 }
 
@@ -85,18 +78,8 @@ antlrcpp::Any CodeGenVisitor::visitAssign_stmt(ifccParser::Assign_stmtContext *c
     std::string varName = ctx->ID()->getText();
     int offset = symbolTable[varName].index;
 
-    ifccParser::RhsContext *rhsCtx = ctx->rhs();
-
-    if (rhsCtx->CONST()) {
-        int val = stoi(rhsCtx->CONST()->getText());
-        std::cout << "    movl $" << val << ", " << offset << "(%rbp)\n";
-    } 
-    else if (rhsCtx->ID()) {
-        std::string rhsName = rhsCtx->ID()->getText();
-        int rhsOffset = symbolTable[rhsName].index;
-        std::cout << "    movl " << rhsOffset << "(%rbp), %eax\n";
-        std::cout << "    movl %eax, " << offset << "(%rbp)\n";
-    }
+    visit(ctx->rhs());   
+    std::cout << "    movl %eax, " << offset << "(%rbp)\n";
 
     return 0;
 }
@@ -114,7 +97,7 @@ antlrcpp::Any CodeGenVisitor::visitExpr_id(ifccParser::Expr_idContext *ctx)
 {
     std::string name = ctx->ID()->getText();
     int offset = symbolTable[name].index;
-    std::cout << "    movl -" << offset << "(%rbp), %eax\n";
+    std::cout << "    movl " << offset << "(%rbp), %eax\n";
     return 0;
 }
 
