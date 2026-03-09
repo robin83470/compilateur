@@ -119,31 +119,38 @@ antlrcpp::Any CodeGenVisitor::visitExpr_plusmoins(ifccParser::Expr_plusmoinsCont
     }
 antlrcpp::Any CodeGenVisitor::visitExpr_multdiv(ifccParser::Expr_multdivContext *ctx)
 {
-    // Visite du côté gauche
     visit(ctx->rhs(0));
-    // %eax contient maintenant le résultat du lhs
-    // On sauvegarde lhs dans %eax
-
-    // Visite du côté droit
+    std::cout << "    pushq %rax\n";
     visit(ctx->rhs(1));
-    // %eax contient maintenant le résultat du rhs
-    // On doit charger lhs dans %ebx pour imul/idiv
-    std::cout << "    movl %eax, %ebx\n"; // déplacer rhs dans %ebx
-    std::cout << "    movl %eax, %eax\n"; // garder rhs en %eax pour idiv si besoin
+    std::cout << "    movl %eax, %ebx\n";
+    std::cout << "    popq %rcx\n";
 
     std::string op = ctx->children[1]->getText();
+    std::cout << "    movl %ecx, %eax\n";
 
     if(op == "*") {
-        // imul lhs, rhs → résultat dans %eax
         std::cout << "    imull %ebx, %eax\n";
     }
     else if(op == "/") {
-        // rhs div lhs
-        std::cout << "    movl %ebx, %eax\n"; // mettre lhs en %eax
-        std::cout << "    cdq\n";              // étendre %eax vers %edx pour idiv
-        std::cout << "    idivl %ecx\n";      // diviser par rhs
+        std::cout << "    cdq\n";
+        std::cout << "    idivl %ebx\n";
+    }
+    else if (op == "%") {
+        
+        std::cout << "    cdq\n";           // Étend %eax dans %edx:%eax
+        std::cout << "    idivl %ebx\n";    // Divise %edx:%eax par %ebx
+        std::cout << "    movl %edx, %eax\n"; // GCC place le reste (%edx) dans le registre de retour (%eax)
     }
 
     return 0;
 }
 
+antlrcpp::Any CodeGenVisitor::visitExpr_moinsunaire(ifccParser::Expr_moinsunaireContext *ctx) {
+    visit(ctx->rhs());        // calcule l'opérande dans %eax
+    std::cout << "    negl %eax\n";   // %eax = -%eax
+    return 0;
+}
+
+antlrcpp::Any CodeGenVisitor::visitExpr_parenthese(ifccParser::Expr_parentheseContext *ctx) {
+    return visit(ctx->rhs());
+}
