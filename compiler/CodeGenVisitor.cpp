@@ -115,6 +115,8 @@ antlrcpp::Any CodeGenVisitor::visitExpr_plusmoins(ifccParser::Expr_plusmoinsCont
             std::cout << "    movl %ecx, %eax\n"; // résultat dans %eax
         }
         return 0;
+
+    }
 antlrcpp::Any CodeGenVisitor::visitExpr_multdiv(ifccParser::Expr_multdivContext *ctx)
 {
     // Visite du côté gauche
