@@ -11,7 +11,7 @@ return_stmt : RETURN rhs ';' ;
 declarator : ID (EQUAL rhs)? ;
 declaration_stmt : 'int' declarator (',' declarator)* ';' ;
 assign_stmt : ID EQUAL rhs ';' ;
-rhs : CONST | ID | expr;
+rhs : expr | CONST | ID ;
 
 expr
     : '-' expr              # Expr_moinsunaire

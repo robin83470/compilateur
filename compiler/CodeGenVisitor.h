@@ -18,6 +18,9 @@ public:
         virtual antlrcpp::Any visitAssign_stmt(ifccParser::Assign_stmtContext *ctx) override;
         virtual antlrcpp::Any visitReturn_stmt(ifccParser::Return_stmtContext *ctx) override;
 
+        virtual antlrcpp::Any visitExpr_const(ifccParser::Expr_constContext *ctx) override;
+        virtual antlrcpp::Any visitExpr_id(ifccParser::Expr_idContext *ctx) override;
+
         virtual antlrcpp::Any visitRhs(ifccParser::RhsContext *ctx) override
         {
                 return visitChildren(ctx);
