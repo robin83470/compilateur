@@ -27,6 +27,9 @@ public:
     /// Crée un nouveau temporaire (nom unique) et retourne son nom.
     std::string newTemp(const std::string& type = "int");
 
+    /// Retourne la taille totale occupée par les variables (valeur positive).
+    int getTotalSize() const { return -currentOffset; }
+
     void checkUnusedVariables() const;
 
     const std::map<std::string, SymbolInfo>& getMap() const { return symbols; }

@@ -15,9 +15,8 @@ void IRInstrConst::printDebug(std::ostream& out) const {
 }
 
 void IRInstrConst::genX86(std::ostream& out) const {
-    // TODO: implémenter la logique
-    // Récupérer l'offset de dest via parentBloc->getCFG()->getSymbolTable()
-    // Générer : movl $value, offset(%rbp)
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+    out << "    movl $" << value << ", " << offsetDest << "(%rbp)\n";
 }
 
 void IRInstrConst::genARM(std::ostream& out) const {
@@ -35,9 +34,10 @@ void IRInstrCopy::printDebug(std::ostream& out) const {
 }
 
 void IRInstrCopy::genX86(std::ostream& out) const {
-    // TODO: implémenter la logique
-    // movl srcOffset(%rbp), %eax
-    // movl %eax, destOffset(%rbp)
+    int offsetSrc = parentBloc->getCFG()->getSymbolTable()->getOffset(src);
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+    out << "    movl " << offsetSrc << "(%rbp), %eax\n";
+    out << "    movl %eax, " << offsetDest << "(%rbp)\n";
 }
 
 void IRInstrCopy::genARM(std::ostream& out) const {
@@ -58,10 +58,12 @@ void IRInstrAdd::printDebug(std::ostream& out) const {
 }
 
 void IRInstrAdd::genX86(std::ostream& out) const {
-    // TODO: implémenter la logique
-    // movl lhsOffset(%rbp), %eax
-    // addl rhsOffset(%rbp), %eax
-    // movl %eax, destOffset(%rbp)
+    int offsetLhs = parentBloc->getCFG()->getSymbolTable()->getOffset(lhs);
+    int offsetRhs = parentBloc->getCFG()->getSymbolTable()->getOffset(rhs);
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+    out << "    movl " << offsetLhs << "(%rbp), %eax\n";
+    out << "    addl " << offsetRhs << "(%rbp), %eax\n";
+    out << "    movl %eax, " << offsetDest << "(%rbp)\n";
 }
 
 void IRInstrAdd::genARM(std::ostream& out) const {

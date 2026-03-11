@@ -11,18 +11,28 @@ void X86BackEnd::generateCode(std::ostream& out) {
 }
 
 void X86BackEnd::generatePrologue(std::ostream& out) {
-    // TODO: implémenter la logique
-    // Label global (différent selon macOS / Linux)
-    // pushq %rbp
-    // movq %rsp, %rbp
-    // subq $stackSize, %rsp   (aligné sur 16 octets)
+#ifdef __APPLE__
+    out << ".globl _main\n";
+    out << "_main:\n";
+#else
+    out << ".globl main\n";
+    out << "main:\n";
+#endif
+    out << "    pushq %rbp\n";
+    out << "    movq %rsp, %rbp\n";
+
+    // Calculer la taille de la pile alignée sur 16 octets
+    int totalSize = cfg->getSymbolTable()->getTotalSize();
+    int stackSize = ((totalSize + 15) / 16) * 16;
+    if (stackSize > 0) {
+        out << "    subq $" << stackSize << ", %rsp\n";
+    }
 }
 
 void X86BackEnd::generateEpilogue(std::ostream& out) {
-    // TODO: implémenter la logique
-    // movq %rbp, %rsp
-    // popq %rbp
-    // ret
+    out << "    movq %rbp, %rsp\n";
+    out << "    popq %rbp\n";
+    out << "    ret\n";
 }
 
 // ═══════════════════════════════════════════════════════════════════

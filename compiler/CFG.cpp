@@ -18,10 +18,25 @@ void IRBasicBloc::addInstruction(IRInstruction* instr) {
 }
 
 void IRBasicBloc::genX86(std::ostream& out) const {
-    // TODO: implémenter la logique
-    // 1. Écrire le label du bloc
-    // 2. Appeler genX86() sur chaque instruction
-    // 3. Gérer les sauts conditionnels / inconditionnels vers exit_true / exit_false
+    // Label du bloc
+    out << label << ":\n";
+
+    // Générer le code de chaque instruction
+    for (const auto* instr : instructions) {
+        instr->genX86(out);
+    }
+
+    // Gestion des sauts
+    if (exitFalse != nullptr) {
+        // Saut conditionnel : tester testVarName
+        int offsetTest = cfg->getSymbolTable()->getOffset(testVarName);
+        out << "    cmpl $0, " << offsetTest << "(%rbp)\n";
+        out << "    je " << exitFalse->getLabel() << "\n";
+        out << "    jmp " << exitTrue->getLabel() << "\n";
+    } else if (exitTrue != nullptr) {
+        // Saut inconditionnel
+        out << "    jmp " << exitTrue->getLabel() << "\n";
+    }
 }
 
 void IRBasicBloc::genARM(std::ostream& out) const {
