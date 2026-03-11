@@ -14,7 +14,7 @@ assign_stmt : ID EQUAL rhs ';' ;
 
 
 rhs : 
-    ('+'|'-') rhs                      # Expr_moinsunaire
+    ('+'|'-'|'!') rhs                      # Expr_moinsunaire
     | rhs ('*'|'/'|'%') rhs            # Expr_multdiv
     | rhs ('+'|'-') rhs                # Expr_plusmoins
     | rhs (CMPLE|CMPGE|CMPLT|CMPGT) rhs # Expr_comparison
@@ -24,11 +24,13 @@ rhs :
     | rhs BXOR rhs                     # Expr_xor
     | '(' rhs ')'                      # Expr_parenthese
     | CONST                            # Expr_const
+    | CHARCONST                        # Expr_char
     | ID                               # Expr_id
     ;
 
 RETURN : 'return' ;
 CONST : [0-9]+ ;
+CHARCONST : '\'' ( '\\' . | ~('\\'|'\'') ) '\'' ;
 COMMENT : '/*' .*? '*/' -> skip ;
 DIRECTIVE : '#' .*? '\n' -> skip ;
 WS    : [ \t\r\n] -> channel(HIDDEN);
@@ -47,4 +49,5 @@ CMPNE : '!=' ;
 BAND : '&' ;
 BXOR : '^' ;
 BOR  : '|' ;
+BNOT : '!';
 

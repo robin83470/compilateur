@@ -33,7 +33,9 @@ antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx)
     for (auto stmt : ctx->stmt()) {
         this->visit(stmt);
     }
-
+    if (!this->hasReturn) {
+        std::cout << "    movl $0, %eax\n";
+    }
     // Epilogue
     std::cout<< "    movq %rbp, %rsp\n";
     std::cout<< "    popq %rbp\n";
@@ -47,6 +49,7 @@ antlrcpp::Any CodeGenVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *c
 {
     // Evaluate any RHS expression; convention: result in %eax.
     visit(ctx->rhs());
+    this->hasReturn = true;
     return 0;
 }
 
@@ -92,6 +95,30 @@ antlrcpp::Any CodeGenVisitor::visitExpr_const(ifccParser::Expr_constContext *ctx
     return 0;
 }
 
+antlrcpp::Any CodeGenVisitor::visitExpr_char(ifccParser::Expr_charContext *ctx)
+{
+    std::string txt = ctx->CHARCONST()->getText(); 
+    unsigned char c = 0;
+    if (txt.size() >= 3) {
+        if (txt[1] == '\\') {
+            char esc = txt[2];
+            switch (esc) {
+                case 'n': c = '\n'; break;
+                case 't': c = '\t'; break;
+                case 'r': c = '\r'; break;
+                case '\\': c = '\\'; break;
+                case '\'': c = '\''; break;
+                case '0': c = '\0'; break;
+                default:  c = esc;    break;
+            }
+        } else {
+            c = txt[1];
+        }
+    }
+    int val = (int)c;
+    std::cout << "    movl $" << val << ", %eax\n";
+    return 0;
+}
 
 
 antlrcpp::Any CodeGenVisitor::visitExpr_id(ifccParser::Expr_idContext *ctx)
@@ -158,6 +185,11 @@ antlrcpp::Any CodeGenVisitor::visitExpr_moinsunaire(ifccParser::Expr_moinsunaire
     std::string op = ctx->children[0]->getText();
     if (op =="-"){
         std::cout << "    negl %eax\n";   // %eax = -%eax
+    }
+    if (op=="!"){
+        std::cout << "    testl %eax, %eax\n";
+        std::cout << "    sete %al\n";
+        std::cout << "    movzbl %al, %eax\n";
     }
     return 0;
 }
