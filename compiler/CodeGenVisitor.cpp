@@ -165,3 +165,32 @@ antlrcpp::Any CodeGenVisitor::visitExpr_moinsunaire(ifccParser::Expr_moinsunaire
 antlrcpp::Any CodeGenVisitor::visitExpr_parenthese(ifccParser::Expr_parentheseContext *ctx) {
     return visit(ctx->rhs());
 }
+
+
+
+antlrcpp::Any CodeGenVisitor::visitExpr_and(ifccParser::Expr_andContext *ctx) {
+    visit(ctx->rhs(0)); 
+    std::cout << "    pushq %rax\n";
+    visit(ctx->rhs(1)); 
+    std::cout << "    popq %rcx\n"; 
+    std::cout << "    andl %ecx, %eax\n"; 
+    return 0;
+}
+
+antlrcpp::Any CodeGenVisitor::visitExpr_or(ifccParser::Expr_orContext *ctx) {
+    visit(ctx->rhs(0)); 
+    std::cout << "    pushq %rax\n";
+    visit(ctx->rhs(1)); 
+    std::cout << "    popq %rcx\n"; 
+    std::cout << "    orl %ecx, %eax\n"; // %eax = gauche | droite
+    return 0;
+}
+
+antlrcpp::Any CodeGenVisitor::visitExpr_xor(ifccParser::Expr_xorContext *ctx) {
+    visit(ctx->rhs(0)); 
+    std::cout << "    pushq %rax\n";
+    visit(ctx->rhs(1)); 
+    std::cout << "    popq %rcx\n"; 
+    std::cout << "    xorl %ecx, %eax\n"; // %eax = gauche ^ droite
+    return 0;
+}

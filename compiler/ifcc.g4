@@ -20,12 +20,12 @@ rhs :
     | rhs (CMPLE|CMPGE|CMPLT|CMPGT) rhs # Expr_comparison
     | rhs (CMPEQ|CMPNE) rhs            # Expr_equality
     | rhs BAND rhs                     # Expr_and
-    | rhs BXOR rhs                     # Expr_xor
     | rhs BOR rhs                      # Expr_or
+    | rhs BXOR rhs                     # Expr_xor
     | '(' rhs ')'                      # Expr_parenthese
     | CONST                            # Expr_const
     | ID                               # Expr_id
-
+    ;
 
 RETURN : 'return' ;
 CONST : [0-9]+ ;
