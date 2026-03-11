@@ -65,7 +65,6 @@ Ce script :
 
 ## Fonctionnalités supportées
 
-Le compilateur supporte actuellement les fonctionnalités suivantes, validées par les tests :
 
 ### Types de base
 - `int` : Type entier
