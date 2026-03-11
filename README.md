@@ -1,5 +1,4 @@
 # PLD Compilateur
-Ceci est un test
 Ce projet est un compilateur pour le langage C.
 
 ## Compilation du compilateur
