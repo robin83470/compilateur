@@ -20,31 +20,28 @@ jobs:
       - name: Install system deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y libantlr4-runtime-dev python3 python3-pip g++ make
+          sudo apt-get install -y libantlr4-runtime-dev python3 python3-pip g++ make curl
 
-      - name: Install ANTLR Tool & Python deps
+      - name: Install Python deps
         run: |
-          pip3 install --user pytest antlr4-tools
-          # On ajoute le chemin des scripts python au PATH pour trouver 'antlr4'
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          pip3 install --user pytest
+
+      - name: Download ANTLR Complete JAR
+        run: |
+          # On télécharge la version exacte 4.13.2
+          curl -L https://www.antlr.org/download/antlr-4.13.2-complete.jar -o ./antlr-4.13.2-complete.jar
 
       - name: Create config.mk for GitHub
         run: |
-          # On demande à antlr4-tools où il a téléchargé le JAR complet
-          ANTLR_COMPLETE_JAR=$(find $HOME/.antlr/lib -name "antlr-*-complete.jar" | head -n 1)
-          
-          echo "ANTLRJAR=$ANTLR_COMPLETE_JAR" > compiler/config.mk
+          # On utilise le JAR qu'on vient de télécharger
+          # On utilise le chemin absolu avec $GITHUB_WORKSPACE
+          echo "ANTLRJAR=$GITHUB_WORKSPACE/antlr-4.13.2-complete.jar" > compiler/config.mk
           echo "ANTLRINC=/usr/include/antlr4-runtime/" >> compiler/config.mk
           echo "ANTLRLIB=/usr/lib/x86_64-linux-gnu/libantlr4-runtime.a" >> compiler/config.mk
 
       - name: Compile
         run: |
-          # On force le téléchargement du JAR si pas encore là
-          antlr4 | true 
-          # On récupère le bon chemin du JAR pour le Makefile
-          JAR_PATH=$(find $HOME/.antlr/lib -name "antlr-*-complete.jar" | head -n 1)
-          sed -i "s|ANTLRJAR=.*|ANTLRJAR=$JAR_PATH|" compiler/config.mk
-          
+          export CLASSPATH=".:$GITHUB_WORKSPACE/antlr-4.13.2-complete.jar:$CLASSPATH"
           make -C compiler
 
       - name: Run ifcc tests
