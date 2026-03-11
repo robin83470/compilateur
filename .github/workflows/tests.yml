@@ -36,7 +36,6 @@ jobs:
           echo "ANTLRLIB=/usr/lib/x86_64-linux-gnu/libantlr4-runtime.a" >> compiler/config.mk
 
       - name: Compile
-        # CLASSPATH permet à Java de trouver les dépendances d'ANTLR pendant la compilation
         run: |
           export CLASSPATH=".:/usr/share/java/antlr4.jar:$CLASSPATH"
           make -C compiler
