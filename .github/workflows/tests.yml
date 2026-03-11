@@ -26,6 +26,15 @@ jobs:
         run: |
           pip3 install --user pytest
 
+      - name: Create config.mk for GitHub
+        run: |
+          # On crée le fichier directement dans le dossier compiler/
+          echo "ANTLRJAR=/usr/share/java/antlr4-runtime.jar" > compiler/config.mk
+          echo "ANTLRINC=/usr/include/antlr4-runtime/" >> compiler/config.mk
+          echo "ANTLRLIB=/usr/lib/x86_64-linux-gnu/libantlr4-runtime.a" >> compiler/config.mk
+
+      - name: Compile
+        run: make -C compiler
 
       - name: Run ifcc tests
         run: python3 ./ifcc-test.py testfiles
