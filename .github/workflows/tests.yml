@@ -20,24 +20,30 @@ jobs:
       - name: Install system deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y libantlr4-runtime-dev python3 python3-pip g++ make curl
-
-      - name: Install Python deps
+          sudo apt-get install -y python3 python3-pip g++ make curl uuid-dev
+          
+      - name: Install ANTLR 4.13.2 Runtime (C++)
         run: |
-          pip3 install --user pytest
+          # Téléchargement et installation du runtime C++ en version 4.13.2
+          curl -L https://www.antlr.org/download/antlr4-cpp-runtime-4.13.2-source.zip -o antlr-runtime.zip
+          unzip antlr-runtime.zip -d antlr-runtime-src
+          mkdir antlr-runtime-build && cd antlr-runtime-build
+          cmake ../antlr-runtime-src -DANTLR4_INSTALL=ON -DCMAKE_BUILD_TYPE=Release
+          make -j$(nproc)
+          sudo make install
+          # On rafraîchit les liens vers les bibliothèques
+          sudo ldconfig
 
-      - name: Download ANTLR Complete JAR
+      - name: Download ANTLR 4.13.2 Tool (Java)
         run: |
-          # On télécharge la version exacte 4.13.2
-          curl -L https://www.antlr.org/download/antlr-4.13.2-complete.jar -o ./antlr-4.13.2-complete.jar
+          curl -L https://www.antlr.org/download/antlr-4.13.2-complete.jar -o $GITHUB_WORKSPACE/antlr-4.13.2-complete.jar
 
       - name: Create config.mk for GitHub
         run: |
-          # On utilise le JAR qu'on vient de télécharger
-          # On utilise le chemin absolu avec $GITHUB_WORKSPACE
+          # Ici on pointe vers l'installation qu'on vient de faire dans /usr/local
           echo "ANTLRJAR=$GITHUB_WORKSPACE/antlr-4.13.2-complete.jar" > compiler/config.mk
-          echo "ANTLRINC=/usr/include/antlr4-runtime/" >> compiler/config.mk
-          echo "ANTLRLIB=/usr/lib/x86_64-linux-gnu/libantlr4-runtime.a" >> compiler/config.mk
+          echo "ANTLRINC=/usr/local/include/antlr4-runtime/" >> compiler/config.mk
+          echo "ANTLRLIB=/usr/local/lib/libantlr4-runtime.a" >> compiler/config.mk
 
       - name: Compile
         run: |
