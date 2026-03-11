@@ -96,6 +96,24 @@ antlrcpp::Any SymbolTableVisitor::visitExpr_equality(ifccParser::Expr_equalityCo
     return 0;
 }
 
+antlrcpp::Any SymbolTableVisitor::visitExpr_and(ifccParser::Expr_andContext *ctx) {
+    visit(ctx->rhs(0));
+    visit(ctx->rhs(1));
+    return 0;
+}
+
+antlrcpp::Any SymbolTableVisitor::visitExpr_xor(ifccParser::Expr_xorContext *ctx) {
+    visit(ctx->rhs(0));
+    visit(ctx->rhs(1));
+    return 0;
+}
+
+antlrcpp::Any SymbolTableVisitor::visitExpr_or(ifccParser::Expr_orContext *ctx) {
+    visit(ctx->rhs(0));
+    visit(ctx->rhs(1));
+    return 0;
+}
+
 
 void SymbolTableVisitor::checkVariableUsed(const std::string& varName) {
     if (symbolTable.count(varName) == 0) {
