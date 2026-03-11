@@ -4,6 +4,9 @@ on:
   pull_request:
     branches:
       - main
+  push:
+    branches:
+      - main
 
 jobs:
   build-and-test:
@@ -22,6 +25,7 @@ jobs:
       - name: Install Python deps
         run: |
           pip3 install --user pytest
+
 
       - name: Run ifcc tests
         run: python3 ./ifcc-test.py testfiles
