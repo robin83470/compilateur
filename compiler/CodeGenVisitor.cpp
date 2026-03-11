@@ -33,7 +33,9 @@ antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx)
     for (auto stmt : ctx->stmt()) {
         this->visit(stmt);
     }
-
+    if (!this->hasReturn) {
+        std::cout << "    movl $0, %eax\n";
+    }
     // Epilogue
     std::cout<< "    movq %rbp, %rsp\n";
     std::cout<< "    popq %rbp\n";
@@ -47,6 +49,7 @@ antlrcpp::Any CodeGenVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *c
 {
     // Evaluate any RHS expression; convention: result in %eax.
     visit(ctx->rhs());
+    this->hasReturn = true;
     return 0;
 }
 
@@ -182,6 +185,11 @@ antlrcpp::Any CodeGenVisitor::visitExpr_moinsunaire(ifccParser::Expr_moinsunaire
     std::string op = ctx->children[0]->getText();
     if (op =="-"){
         std::cout << "    negl %eax\n";   // %eax = -%eax
+    }
+    if (op=="!"){
+        std::cout << "    testl %eax, %eax\n";
+        std::cout << "    sete %al\n";
+        std::cout << "    movzbl %al, %eax\n";
     }
     return 0;
 }

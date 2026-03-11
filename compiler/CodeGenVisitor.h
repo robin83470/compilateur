@@ -8,6 +8,7 @@ class CodeGenVisitor : public ifccBaseVisitor
 {
 private:
         std::map<std::string, SymbolTableVisitor::SymbolInfo> symbolTable;
+        int hasReturn =0;
 
 public:
         CodeGenVisitor(std::map<std::string, SymbolTableVisitor::SymbolInfo> symbols);

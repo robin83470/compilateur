@@ -14,7 +14,7 @@ assign_stmt : ID EQUAL rhs ';' ;
 
 
 rhs : 
-    ('+'|'-') rhs                      # Expr_moinsunaire
+    ('+'|'-'|'!') rhs                      # Expr_moinsunaire
     | rhs ('*'|'/'|'%') rhs            # Expr_multdiv
     | rhs ('+'|'-') rhs                # Expr_plusmoins
     | rhs (CMPLE|CMPGE|CMPLT|CMPGT) rhs # Expr_comparison
@@ -47,4 +47,5 @@ CMPNE : '!=' ;
 BAND : '&' ;
 BXOR : '^' ;
 BOR  : '|' ;
+BNOT : '!';
 
