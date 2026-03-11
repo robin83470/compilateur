@@ -30,3 +30,4 @@ DIRECTIVE : '#' .*? '\n' -> skip ;
 WS    : [ \t\r\n] -> channel(HIDDEN);
 ID : [a-zA-Z_][a-zA-Z0-9_]* ;
 EQUAL : '=' ;
+
