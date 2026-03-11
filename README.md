@@ -1,5 +1,8 @@
 # PLD Compilateur
 Ce projet est un compilateur pour le langage C.
+
+J'ai ajouté une pipeline de test
+blablabla
 ## Compilation du compilateur
 
 Pour compiler le compilateur `ifcc`, placez-vous dans le dossier `compiler` et exécutez la commande `make` :
