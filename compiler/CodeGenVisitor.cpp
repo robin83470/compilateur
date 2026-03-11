@@ -127,11 +127,13 @@ antlrcpp::Any CodeGenVisitor::visitExpr_multdiv(ifccParser::Expr_multdivContext 
 
     std::string op = ctx->children[1]->getText();
     std::cout << "    movl %ecx, %eax\n";
-
-    if ((op == "/" || op == "%")) {
-        int val = std::stoi(ctx->rhs(1)->getText());
-        if (val == 0) {
-            std::cerr << "warning: division by zero  '"<< std::endl; // L'erreur va se faire par le systéme en renvoyant 136
+    if (op == "/" || op == "%") {
+        auto diviseur_node = ctx->rhs(1);
+        if (auto cctx = dynamic_cast<ifccParser::Expr_constContext*>(diviseur_node)) {
+            int val = std::stoi(cctx->CONST()->getText());
+            if (val == 0) {
+                std::cerr << "warning: division by zero " << std::endl;
+            }
         }
     }
     if(op == "*") {
