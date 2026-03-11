@@ -41,7 +41,6 @@ jobs:
 
       - name: Compile
         run: |
-          # On s'assure que le CLASSPATH pointe sur notre JAR
           export CLASSPATH=".:$GITHUB_WORKSPACE/antlr-4.13.2-complete.jar:$CLASSPATH"
           make -C compiler
 
