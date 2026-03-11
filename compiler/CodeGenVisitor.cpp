@@ -92,6 +92,30 @@ antlrcpp::Any CodeGenVisitor::visitExpr_const(ifccParser::Expr_constContext *ctx
     return 0;
 }
 
+antlrcpp::Any CodeGenVisitor::visitExpr_char(ifccParser::Expr_charContext *ctx)
+{
+    std::string txt = ctx->CHARCONST()->getText(); 
+    unsigned char c = 0;
+    if (txt.size() >= 3) {
+        if (txt[1] == '\\') {
+            char esc = txt[2];
+            switch (esc) {
+                case 'n': c = '\n'; break;
+                case 't': c = '\t'; break;
+                case 'r': c = '\r'; break;
+                case '\\': c = '\\'; break;
+                case '\'': c = '\''; break;
+                case '0': c = '\0'; break;
+                default:  c = esc;    break;
+            }
+        } else {
+            c = txt[1];
+        }
+    }
+    int val = (int)c;
+    std::cout << "    movl $" << val << ", %eax\n";
+    return 0;
+}
 
 
 antlrcpp::Any CodeGenVisitor::visitExpr_id(ifccParser::Expr_idContext *ctx)

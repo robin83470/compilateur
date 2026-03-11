@@ -50,8 +50,8 @@ int main(int argn, const char **argv)
     }
 
     if (lexer.getNumberOfSyntaxErrors() != 0) {
-    cerr << "Erreur lexicale" << endl;
-    exit(1);
+        cerr << "Erreur lexicale" << endl;
+        exit(1);
     }
     SymbolTableVisitor symbolTableVisitor;
     symbolTableVisitor.visit(tree);
