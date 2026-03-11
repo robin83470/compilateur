@@ -25,7 +25,7 @@ rhs :
     | '(' rhs ')'                      # Expr_parenthese
     | CONST                            # Expr_const
     | ID                               # Expr_id
-
+;
 
 RETURN : 'return' ;
 CONST : [0-9]+ ;
