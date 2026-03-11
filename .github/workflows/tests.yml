@@ -20,6 +20,7 @@ jobs:
       - name: Install system deps
         run: |
           sudo apt-get update
+          # On installe antlr4 et le runtime dev
           sudo apt-get install -y antlr4 libantlr4-runtime-dev python3 python3-pip g++ make
 
       - name: Install Python deps
@@ -28,12 +29,16 @@ jobs:
 
       - name: Create config.mk for GitHub
         run: |
+          # On utilise le JAR complet présent dans /usr/share/java/
+          # On ajoute explicitement le classpath pour Java si nécessaire dans le config.mk
           echo "ANTLRJAR=/usr/share/java/antlr4.jar" > compiler/config.mk
           echo "ANTLRINC=/usr/include/antlr4-runtime/" >> compiler/config.mk
           echo "ANTLRLIB=/usr/lib/x86_64-linux-gnu/libantlr4-runtime.a" >> compiler/config.mk
 
       - name: Compile
-        run: make -C compiler
+        run: |
+          export CLASSPATH=".:/usr/share/java/antlr4.jar:$CLASSPATH"
+          make -C compiler
 
       - name: Run ifcc tests
         run: python3 ./ifcc-test.py testfiles
