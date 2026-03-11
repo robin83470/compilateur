@@ -66,6 +66,14 @@ Ce script :
 ## Fonctionnalités supportées
 
 Le compilateur supporte actuellement les fonctionnalités suivantes, validées par les tests :
+          -déclaration et définition de variable (int seulement)
+          -arithmétique (+,- ,*,/,%) entre constante et variable
+          -parenthèse et moins unaire
+          -retour
+
+Fonctionnalité detectée non supporter : 
+          - plus unaire (commencer par un plus)
+
 
 ### Types de base
 - `int` : Type entier
