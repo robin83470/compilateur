@@ -128,6 +128,12 @@ antlrcpp::Any CodeGenVisitor::visitExpr_multdiv(ifccParser::Expr_multdivContext 
     std::string op = ctx->children[1]->getText();
     std::cout << "    movl %ecx, %eax\n";
 
+    if ((op == "/" || op == "%")) {
+        int val = std::stoi(ctx->rhs(1)->getText());
+        if (val == 0) {
+            std::cerr << "warning: division by zero  '"<< std::endl; // L'erreur va se faire par le systéme en renvoyant 136
+        }
+    }
     if(op == "*") {
         std::cout << "    imull %ebx, %eax\n";
     }
@@ -137,9 +143,9 @@ antlrcpp::Any CodeGenVisitor::visitExpr_multdiv(ifccParser::Expr_multdivContext 
     }
     else if (op == "%") {
         
-        std::cout << "    cdq\n";           // Étend %eax dans %edx:%eax
-        std::cout << "    idivl %ebx\n";    // Divise %edx:%eax par %ebx
-        std::cout << "    movl %edx, %eax\n"; // GCC place le reste (%edx) dans le registre de retour (%eax)
+        std::cout << "    cdq\n";          
+        std::cout << "    idivl %ebx\n";   
+        std::cout << "    movl %edx, %eax\n";
     }
 
     return 0;
@@ -147,7 +153,10 @@ antlrcpp::Any CodeGenVisitor::visitExpr_multdiv(ifccParser::Expr_multdivContext 
 
 antlrcpp::Any CodeGenVisitor::visitExpr_moinsunaire(ifccParser::Expr_moinsunaireContext *ctx) {
     visit(ctx->rhs());        // calcule l'opérande dans %eax
-    std::cout << "    negl %eax\n";   // %eax = -%eax
+    std::string op = ctx->children[0]->getText();
+    if (op =="-"){
+        std::cout << "    negl %eax\n";   // %eax = -%eax
+    }
     return 0;
 }
 
