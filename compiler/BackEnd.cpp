@@ -30,6 +30,10 @@ void X86BackEnd::generatePrologue(std::ostream& out) {
 }
 
 void X86BackEnd::generateEpilogue(std::ostream& out) {
+    // Charger la valeur de retour dans %eax
+    int offsetRetval = cfg->getSymbolTable()->getOffset("!retval");
+    out << "    movl " << offsetRetval << "(%rbp), %eax\n";
+
     out << "    movq %rbp, %rsp\n";
     out << "    popq %rbp\n";
     out << "    ret\n";

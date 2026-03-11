@@ -5,9 +5,11 @@ IRVisitor::IRVisitor(SymbolTable* symbolTable)
     : symbolTable(symbolTable) {}
 
 IRControlFlowGraph* IRVisitor::buildIr(antlr4::tree::ParseTree* tree) {
-    // Créer le CFG, le visiter, le retourner
     currentCFG = new IRControlFlowGraph(symbolTable);
     currentCFG->addBasicBloc(".entry");
+
+    // Réserver le temporaire pour la valeur de retour
+    symbolTable->addSymbol("!retval");
 
     visit(tree);
 
@@ -15,8 +17,6 @@ IRControlFlowGraph* IRVisitor::buildIr(antlr4::tree::ParseTree* tree) {
 }
 
 antlrcpp::Any IRVisitor::visitProg(ifccParser::ProgContext* ctx) {
-    // TODO: implémenter la logique
-    // Visiter tous les statements
     for (auto* stmt : ctx->stmt()) {
         visit(stmt);
     }
@@ -24,10 +24,9 @@ antlrcpp::Any IRVisitor::visitProg(ifccParser::ProgContext* ctx) {
 }
 
 antlrcpp::Any IRVisitor::visitReturn_stmt(ifccParser::Return_stmtContext* ctx) {
-    // TODO: implémenter la logique
-    // 1. Visiter l'expression rhs → récupérer le nom du temporaire résultat
-    // 2. Générer un IRInstrCopy vers un registre spécial (ex: "!retval") ou
-    //    directement marquer ce temporaire comme valeur de retour
+    std::string tmp = std::any_cast<std::string>(visit(ctx->rhs()));
+    auto* bloc = currentCFG->getCurrentBasicBloc();
+    bloc->addInstruction(new IRInstrCopy(bloc, "!retval", tmp));
     return 0;
 }
 
@@ -39,17 +38,20 @@ antlrcpp::Any IRVisitor::visitDeclaration_stmt(ifccParser::Declaration_stmtConte
 }
 
 antlrcpp::Any IRVisitor::visitDeclarator(ifccParser::DeclaratorContext* ctx) {
-    // TODO: implémenter la logique
-    // Si initialisé (EQUAL rhs) :
-    //   1. Visiter rhs → nom du temporaire
-    //   2. Générer IRInstrCopy de tmp vers la variable
+    std::string varName = ctx->ID()->getText();
+    if (ctx->EQUAL()) {
+        std::string tmp = std::any_cast<std::string>(visit(ctx->rhs()));
+        auto* bloc = currentCFG->getCurrentBasicBloc();
+        bloc->addInstruction(new IRInstrCopy(bloc, varName, tmp));
+    }
     return 0;
 }
 
 antlrcpp::Any IRVisitor::visitAssign_stmt(ifccParser::Assign_stmtContext* ctx) {
-    // TODO: implémenter la logique
-    // 1. Visiter rhs → nom du temporaire
-    // 2. Générer IRInstrCopy de tmp vers la variable
+    std::string varName = ctx->ID()->getText();
+    std::string tmp = std::any_cast<std::string>(visit(ctx->rhs()));
+    auto* bloc = currentCFG->getCurrentBasicBloc();
+    bloc->addInstruction(new IRInstrCopy(bloc, varName, tmp));
     return 0;
 }
 
@@ -59,26 +61,31 @@ antlrcpp::Any IRVisitor::visitAssign_stmt(ifccParser::Assign_stmtContext* ctx) {
 // est stocké.
 
 antlrcpp::Any IRVisitor::visitExpr_const(ifccParser::Expr_constContext* ctx) {
-    // TODO: implémenter la logique
-    // 1. Créer un temporaire via currentCFG->newTemp()
-    // 2. Ajouter IRInstrConst(bloc, tmp, valeur)
-    // 3. Retourner le nom du temporaire
-    return std::string("");
+    std::string tmp = currentCFG->newTemp();
+    int val = std::stoi(ctx->CONST()->getText());
+    auto* bloc = currentCFG->getCurrentBasicBloc();
+    bloc->addInstruction(new IRInstrConst(bloc, tmp, val));
+    return tmp;
 }
 
 antlrcpp::Any IRVisitor::visitExpr_id(ifccParser::Expr_idContext* ctx) {
-    // TODO: implémenter la logique
-    // Retourner directement le nom de la variable (elle est déjà en mémoire)
-    return std::string("");
+    return ctx->ID()->getText();
 }
 
 antlrcpp::Any IRVisitor::visitExpr_plusmoins(ifccParser::Expr_plusmoinsContext* ctx) {
-    // TODO: implémenter la logique
-    // 1. Visiter lhs et rhs → deux noms de temporaires
-    // 2. Créer un temporaire résultat
-    // 3. Ajouter IRInstrAdd ou IRInstrSub selon l'opérateur
-    // 4. Retourner le nom du temporaire résultat
-    return std::string("");
+    std::string lhs = std::any_cast<std::string>(visit(ctx->rhs(0)));
+    std::string rhs = std::any_cast<std::string>(visit(ctx->rhs(1)));
+    std::string tmp = currentCFG->newTemp();
+    auto* bloc = currentCFG->getCurrentBasicBloc();
+
+    std::string op = ctx->children[1]->getText();
+    if (op == "+") {
+        bloc->addInstruction(new IRInstrAdd(bloc, tmp, lhs, rhs));
+    } else {
+        // TODO: IRInstrSub quand elle sera implémentée
+        bloc->addInstruction(new IRInstrAdd(bloc, tmp, lhs, rhs));
+    }
+    return tmp;
 }
 
 antlrcpp::Any IRVisitor::visitExpr_multdiv(ifccParser::Expr_multdivContext* ctx) {
