@@ -56,7 +56,7 @@ int main(int argn, const char **argv)
     SymbolTableVisitor symbolTableVisitor;
     symbolTableVisitor.visit(tree);
     
-    CodeGenVisitor codeGen(symbolTableVisitor.symbolTable);
+    CodeGenVisitor codeGen(&symbolTableVisitor.symbolTable);
     codeGen.visit(tree);
 
     return 0;

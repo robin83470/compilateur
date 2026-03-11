@@ -3,7 +3,7 @@
 
 antlrcpp::Any SymbolTableVisitor::visitProg(ifccParser::ProgContext *ctx) {
     visitChildren(ctx);
-    checkUnusedVariables();
+    symbolTable.checkUnusedVariables();
     
     return 0;
 }
@@ -16,7 +16,6 @@ antlrcpp::Any SymbolTableVisitor::visitDeclaration_stmt(ifccParser::Declaration_
 antlrcpp::Any SymbolTableVisitor::visitAssign_stmt(ifccParser::Assign_stmtContext *ctx) {
     std::string varName = ctx->ID()->getText();
     checkVariableUsed(varName);
-    symbolTable[varName].used = true;
 
     visit(ctx->rhs());   
 
@@ -32,22 +31,11 @@ antlrcpp::Any SymbolTableVisitor::visitReturn_stmt(ifccParser::Return_stmtContex
 antlrcpp::Any SymbolTableVisitor::visitDeclarator(ifccParser::DeclaratorContext *ctx) {
     std::string varName = ctx->ID()->getText();
 
-    if (symbolTable.count(varName) > 0) {
-        std::cerr << "Erreur : la variable '" << varName << "' est déjà déclarée." << std::endl;
-        exit(1);
-    }
-
-    currentOffset -= 4;
-    SymbolInfo info;
-    info.index = currentOffset;
-    info.declared = true;
-    info.used = false;
-
-    symbolTable[varName] = info;
+    symbolTable.addSymbol(varName);  // Erreur automatique si déjà déclaré
 
     if (ctx->rhs() != nullptr) {
         visit(ctx->rhs());   
-        symbolTable[varName].used = true;
+        symbolTable.getSymbol(varName).used = true;
     }
 
     return 0;
@@ -85,21 +73,6 @@ antlrcpp::Any SymbolTableVisitor::visitExpr_moinsunaire(ifccParser::Expr_moinsun
 }
 
 void SymbolTableVisitor::checkVariableUsed(const std::string& varName) {
-    if (symbolTable.count(varName) == 0) {
-        std::cerr << "Erreur : la variable '" << varName << "' a été utilisée mais n'a pas été déclarée." << std::endl;
-        exit(1);
-    }
-    
-    symbolTable[varName].used = true;
-}
-
-void SymbolTableVisitor::checkUnusedVariables() {
-    for (const auto& pair : symbolTable) {
-        const std::string& varName = pair.first;
-        const SymbolInfo& info = pair.second;
-        
-        if (!info.used) {
-            std::cerr << "Avertissement : la variable '" << varName << "' a été déclarée mais n'est pas utilisée." << std::endl;
-        }
-    }
+    // getSymbol() sort en erreur si la variable n'existe pas
+    symbolTable.getSymbol(varName).used = true;
 }

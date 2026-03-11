@@ -2,15 +2,15 @@
 
 #include "antlr4-runtime.h"
 #include "generated/ifccBaseVisitor.h"
-#include "SymbolTableVisitor.h"
+#include "SymbolTable.h"
 
 class CodeGenVisitor : public ifccBaseVisitor
 {
 private:
-        std::map<std::string, SymbolTableVisitor::SymbolInfo> symbolTable;
+        SymbolTable* symbolTable;
 
 public:
-        CodeGenVisitor(std::map<std::string, SymbolTableVisitor::SymbolInfo> symbols);
+        CodeGenVisitor(SymbolTable* symbols);
 
         virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override;
         virtual antlrcpp::Any visitDeclarator(ifccParser::DeclaratorContext *ctx) override;

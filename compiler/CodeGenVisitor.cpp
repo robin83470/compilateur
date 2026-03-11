@@ -1,6 +1,6 @@
 #include "CodeGenVisitor.h"
 
-CodeGenVisitor::CodeGenVisitor(std::map<std::string, SymbolTableVisitor::SymbolInfo> symbols) {
+CodeGenVisitor::CodeGenVisitor(SymbolTable* symbols) {
     this->symbolTable = symbols;
 }
 
@@ -18,7 +18,7 @@ antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx)
     std::cout<< "    pushq %rbp\n" ;
     std::cout<< "    movq %rsp, %rbp\n";
     int localBytes = 0;
-    for (const auto &entry : symbolTable) {
+    for (const auto &entry : symbolTable->getMap()) {
         int bytes = -entry.second.index;
         if (bytes > localBytes) {
             localBytes = bytes;
@@ -61,7 +61,7 @@ antlrcpp::Any CodeGenVisitor::visitDeclaration_stmt(ifccParser::Declaration_stmt
 antlrcpp::Any CodeGenVisitor::visitDeclarator(ifccParser::DeclaratorContext *ctx)
 {
     std::string varName = ctx->ID()->getText();
-    int offset = symbolTable[varName].index;
+    int offset = symbolTable->getOffset(varName);
     if (ctx->EQUAL()) {
 
         visit(ctx->rhs());
@@ -77,7 +77,7 @@ antlrcpp::Any CodeGenVisitor::visitDeclarator(ifccParser::DeclaratorContext *ctx
 antlrcpp::Any CodeGenVisitor::visitAssign_stmt(ifccParser::Assign_stmtContext *ctx)
 {
     std::string varName = ctx->ID()->getText();
-    int offset = symbolTable[varName].index;
+    int offset = symbolTable->getOffset(varName);
 
     visit(ctx->rhs());
     std::cout << "    movl %eax, " << offset << "(%rbp)\n";
@@ -97,7 +97,7 @@ antlrcpp::Any CodeGenVisitor::visitExpr_const(ifccParser::Expr_constContext *ctx
 antlrcpp::Any CodeGenVisitor::visitExpr_id(ifccParser::Expr_idContext *ctx)
 {
     std::string name = ctx->ID()->getText();
-    int offset = symbolTable[name].index;
+    int offset = symbolTable->getOffset(name);
     std::cout << "    movl " << offset << "(%rbp), %eax\n";
     return 0;
 }
