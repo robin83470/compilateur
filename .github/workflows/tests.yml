@@ -24,7 +24,7 @@ jobs:
           pip3 install --user pytest
 
       - name: Compile
-        run: make
+        run: compiler/make
 
       - name: Run ifcc tests
         run: python3 ./ifcc-test.py testfiles
