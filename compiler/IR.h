@@ -144,3 +144,33 @@ private:
     std::string lhs;
     std::string rhs;
 };
+
+//  IRInstrCmp : dest = (lhs cmp rhs)
+//  Exemple IR : cmp dest lhs rhs lt
+class IRInstrCmp : public IRInstruction {
+public:
+    enum CmpType {
+        LT,
+        LE,
+        GT,
+        GE,
+        EQ,
+        NEQ
+    };
+
+    IRInstrCmp(IRBasicBloc* parentBloc,
+               const std::string& dest,
+               const std::string& lhs,
+               const std::string& rhs,
+               CmpType cmpType);
+
+    void printDebug(std::ostream& out) const override;
+    void genX86(std::ostream& out) const override;
+    void genARM(std::ostream& out) const override;
+
+private:
+    std::string dest;
+    std::string lhs;
+    std::string rhs;
+    CmpType cmpType;
+};

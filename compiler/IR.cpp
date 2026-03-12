@@ -1,6 +1,26 @@
 #include "IR.h"
 #include "CFG.h"
 
+namespace {
+const char* cmpTypeToString(IRInstrCmp::CmpType cmpType) {
+    switch (cmpType) {
+        case IRInstrCmp::LT:
+            return "lt";
+        case IRInstrCmp::LE:
+            return "le";
+        case IRInstrCmp::GT:
+            return "gt";
+        case IRInstrCmp::GE:
+            return "ge";
+        case IRInstrCmp::EQ:
+            return "eq";
+        case IRInstrCmp::NEQ:
+            return "neq";
+    }
+    return "?";
+}
+}
+
 IRInstruction::IRInstruction(IRBasicBloc* parentBloc)
     : parentBloc(parentBloc) {}
     
@@ -176,5 +196,56 @@ void IRInstrMod::genX86(std::ostream& out) const {
 }
 
 void IRInstrMod::genARM(std::ostream& out) const {
+    // TODO: implémenter la logique
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  IRInstrCmp
+// ═══════════════════════════════════════════════════════════════════
+
+IRInstrCmp::IRInstrCmp(IRBasicBloc* parentBloc,
+                       const std::string& dest,
+                       const std::string& lhs,
+                       const std::string& rhs,
+                       CmpType cmpType)
+    : IRInstruction(parentBloc), dest(dest), lhs(lhs), rhs(rhs), cmpType(cmpType) {}
+
+void IRInstrCmp::printDebug(std::ostream& out) const {
+    out << "  cmp " << dest << " " << lhs << " " << rhs << " " << cmpTypeToString(cmpType) << "\n";
+}
+
+void IRInstrCmp::genX86(std::ostream& out) const {
+    int offsetLhs = parentBloc->getCFG()->getSymbolTable()->getOffset(lhs);
+    int offsetRhs = parentBloc->getCFG()->getSymbolTable()->getOffset(rhs);
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+    out << "    movl " << offsetLhs << "(%rbp), %eax\n";
+    out << "    cmpl " << offsetRhs << "(%rbp), %eax\n";
+    switch (cmpType) {
+        case LT:
+            out << "    setl %al\n";
+            break;
+        case LE:
+            out << "    setle %al\n";
+            break;
+        case GT:
+            out << "    setg %al\n";
+            break;
+        case GE:
+            out << "    setge %al\n";
+            break;
+        case EQ:
+            out << "    sete %al\n";
+            break;
+        case NEQ:
+            out << "    setne %al\n";
+            break;
+        default:
+            throw std::runtime_error("Unknown comparison type");
+    }
+    out << "    movzbl %al, %eax\n";
+    out << "    movl %eax, " << offsetDest << "(%rbp)\n";
+}
+
+void IRInstrCmp::genARM(std::ostream& out) const {
     // TODO: implémenter la logique
 }

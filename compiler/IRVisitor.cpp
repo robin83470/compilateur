@@ -113,7 +113,10 @@ antlrcpp::Any IRVisitor::visitExpr_multdiv(ifccParser::Expr_multdivContext* ctx)
     }
     else if (op == "/") {
         bloc->addInstruction(new IRInstrDiv(bloc, tmp, lhs, rhs));
+    } else if (op == "%") {
+        bloc->addInstruction(new IRInstrMod(bloc, tmp, lhs, rhs));
     }
+    return tmp;
 }
 
 antlrcpp::Any IRVisitor::visitExpr_moinsunaire(ifccParser::Expr_moinsunaireContext* ctx) {
@@ -129,10 +132,28 @@ antlrcpp::Any IRVisitor::visitExpr_comparison(ifccParser::Expr_comparisonContext
     // TODO: implémenter la logique
     return std::string("");
 }
+    std::string lhs = std::any_cast<std::string>(visit(ctx->rhs(0)));
+    std::string rhs = std::any_cast<std::string>(visit(ctx->rhs(1)));
+    std::string tmp = currentCFG->newTemp();
+    auto* bloc = currentCFG->getCurrentBasicBloc();
 
-antlrcpp::Any IRVisitor::visitExpr_equality(ifccParser::Expr_equalityContext* ctx) {
-    // TODO: implémenter la logique
-    return std::string("");
+    std::string op = ctx->children[1]->getText();
+    if (op == "<") {
+        bloc->addInstruction(new IRInstrCmp(bloc, tmp, lhs, rhs, IRInstrCmp::LT));
+    } else if (op == "<=") {
+        bloc->addInstruction(new IRInstrCmp(bloc, tmp, lhs, rhs, IRInstrCmp::LE));
+    } else if (op == ">") {
+        bloc->addInstruction(new IRInstrCmp(bloc, tmp, lhs, rhs, IRInstrCmp::GT));
+    } else if (op == ">=") {
+        bloc->addInstruction(new IRInstrCmp(bloc, tmp, lhs, rhs, IRInstrCmp::GE));
+    }
+    else if (op == "==") {
+        bloc->addInstruction(new IRInstrCmp(bloc, tmp, lhs, rhs, IRInstrCmp::EQ));
+    }
+    else if (op == "!=") {
+        bloc->addInstruction(new IRInstrCmp(bloc, tmp, lhs, rhs, IRInstrCmp::NEQ));
+    }
+    return tmp;
 }
 
 antlrcpp::Any IRVisitor::visitExpr_and(ifccParser::Expr_andContext* ctx) {
