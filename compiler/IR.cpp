@@ -276,3 +276,58 @@ void IRInstrXor::genX86(std::ostream& out) const {
 void IRInstrXor::genARM(std::ostream& out) const {
     // TODO: implémenter la logique
 }
+
+// ═══════════════════════════════════════════════════════════════════
+//  IRInstrOr
+// ═══════════════════════════════════════════════════════════════════
+
+IRInstrOr::IRInstrOr(IRBasicBloc* parentBloc,
+                     const std::string& dest,
+                     const std::string& lhs,
+                     const std::string& rhs)
+    : IRInstruction(parentBloc), dest(dest), lhs(lhs), rhs(rhs) {}
+
+void IRInstrOr::printDebug(std::ostream& out) const {
+    out << "  or " << dest << " " << lhs << " " << rhs << "\n";
+}
+
+void IRInstrOr::genX86(std::ostream& out) const {
+    int offsetLhs = parentBloc->getCFG()->getSymbolTable()->getOffset(lhs);
+    int offsetRhs = parentBloc->getCFG()->getSymbolTable()->getOffset(rhs);
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+    out << "    movl " << offsetLhs << "(%rbp), %eax\n";
+    out << "    orl " << offsetRhs << "(%rbp), %eax\n";
+    out << "    movl %eax, " << offsetDest << "(%rbp)\n";
+}
+
+void IRInstrOr::genARM(std::ostream& out) const {
+    // TODO: implémenter la logique
+}
+
+
+// ═══════════════════════════════════════════════════════════════════
+//  IRInstrAnd
+// ═══════════════════════════════════════════════════════════════════
+
+IRInstrAnd::IRInstrAnd(IRBasicBloc* parentBloc,
+                       const std::string& dest,
+                       const std::string& lhs,
+                       const std::string& rhs)
+    : IRInstruction(parentBloc), dest(dest), lhs(lhs), rhs(rhs) {}
+
+void IRInstrAnd::printDebug(std::ostream& out) const {
+    out << "  and " << dest << " " << lhs << " " << rhs << "\n";
+}
+
+void IRInstrAnd::genX86(std::ostream& out) const {
+    int offsetLhs = parentBloc->getCFG()->getSymbolTable()->getOffset(lhs);
+    int offsetRhs = parentBloc->getCFG()->getSymbolTable()->getOffset(rhs);
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+    out << "    movl " << offsetLhs << "(%rbp), %eax\n";
+    out << "    andl " << offsetRhs << "(%rbp), %eax\n";
+    out << "    movl %eax, " << offsetDest << "(%rbp)\n";
+}
+
+void IRInstrAnd::genARM(std::ostream& out) const {
+    // TODO: implémenter la logique
+}

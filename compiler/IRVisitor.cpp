@@ -159,11 +159,23 @@ antlrcpp::Any IRVisitor::visitExpr_comparison(ifccParser::Expr_comparisonContext
 antlrcpp::Any IRVisitor::visitExpr_and(ifccParser::Expr_andContext* ctx) {
     // TODO: implémenter la logique
     return std::string("");
+    std::string lhs = std::any_cast<std::string>(visit(ctx->rhs(0)));
+    std::string rhs = std::any_cast<std::string>(visit(ctx->rhs(1)));
+    std::string tmp = currentCFG->newTemp();
+    auto* bloc = currentCFG->getCurrentBasicBloc();
+    bloc->addInstruction(new IRInstrAnd(bloc, tmp, lhs, rhs));
+    return tmp;
 }
 
 antlrcpp::Any IRVisitor::visitExpr_or(ifccParser::Expr_orContext* ctx) {
     // TODO: implémenter la logique
     return std::string("");
+    std::string lhs = std::any_cast<std::string>(visit(ctx->rhs(0)));
+    std::string rhs = std::any_cast<std::string>(visit(ctx->rhs(1)));
+    std::string tmp = currentCFG->newTemp();
+    auto* bloc = currentCFG->getCurrentBasicBloc();
+    bloc->addInstruction(new IRInstrOr(bloc, tmp, lhs, rhs));
+    return tmp;
 }
 
 antlrcpp::Any IRVisitor::visitExpr_xor(ifccParser::Expr_xorContext* ctx) {
