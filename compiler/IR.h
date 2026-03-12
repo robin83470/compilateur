@@ -109,3 +109,20 @@ private:
     std::string rhs;
 };
 
+//  IRInstrDiv : dest = lhs / rhs
+//  Exemple IR :  div dest lhs rhs
+class IRInstrDiv : public IRInstruction {
+public:
+    IRInstrDiv(IRBasicBloc* parentBloc,
+               const std::string& dest,
+               const std::string& lhs,
+               const std::string& rhs);
+    void printDebug(std::ostream& out) const override;
+    void genX86(std::ostream& out) const override;
+    void genARM(std::ostream& out) const override;
+
+private:
+    std::string dest;
+    std::string lhs;
+    std::string rhs;
+};

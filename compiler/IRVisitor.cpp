@@ -101,6 +101,8 @@ antlrcpp::Any IRVisitor::visitExpr_multdiv(ifccParser::Expr_multdivContext* ctx)
     if (op == "*") {
         bloc->addInstruction(new IRInstrMult(bloc, tmp, lhs, rhs));
     }
+    else if (op == "/") {
+        bloc->addInstruction(new IRInstrDiv(bloc, tmp, lhs, rhs));
     }
 }
 

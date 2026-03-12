@@ -123,3 +123,31 @@ void IRInstrMult::genX86(std::ostream& out) const {
 void IRInstrMult::genARM(std::ostream& out) const {
     // TODO: implémenter la logique
 }
+
+// ═══════════════════════════════════════════════════════════════════
+//  IRInstrDiv
+// ═══════════════════════════════════════════════════════════════════
+
+IRInstrDiv::IRInstrDiv(IRBasicBloc* parentBloc,
+                       const std::string& dest,
+                       const std::string& lhs,
+                       const std::string& rhs)
+    : IRInstruction(parentBloc), dest(dest), lhs(lhs), rhs(rhs) {}
+
+void IRInstrDiv::printDebug(std::ostream& out) const {
+    out << "  div " << dest << " " << lhs << " " << rhs << "\n";
+}
+
+void IRInstrDiv::genX86(std::ostream& out) const {
+    int offsetLhs = parentBloc->getCFG()->getSymbolTable()->getOffset(lhs);
+    int offsetRhs = parentBloc->getCFG()->getSymbolTable()->getOffset(rhs);
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+    out << "    movl " << offsetLhs << "(%rbp), %eax\n";
+    out << "    cdq\n";
+    out << "    idivl " << offsetRhs << "(%rbp)\n";
+    out << "    movl %eax, " << offsetDest << "(%rbp)\n";
+}
+
+void IRInstrDiv::genARM(std::ostream& out) const {
+    // TODO: implémenter la logique
+}
