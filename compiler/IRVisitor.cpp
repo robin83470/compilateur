@@ -84,6 +84,7 @@ antlrcpp::Any IRVisitor::visitExpr_plusmoins(ifccParser::Expr_plusmoinsContext* 
     } else {
         // TODO: IRInstrSub quand elle sera implémentée
         bloc->addInstruction(new IRInstrAdd(bloc, tmp, lhs, rhs));
+        bloc->addInstruction(new IRInstrSub(bloc, tmp, lhs, rhs));
     }
     return tmp;
 }

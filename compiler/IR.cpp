@@ -69,3 +69,31 @@ void IRInstrAdd::genX86(std::ostream& out) const {
 void IRInstrAdd::genARM(std::ostream& out) const {
     // TODO: implémenter la logique
 }
+
+// ═══════════════════════════════════════════════════════════════════
+//  IRInstrSub
+// ═══════════════════════════════════════════════════════════════════
+
+IRInstrSub::IRInstrSub(IRBasicBloc* parentBloc,
+                       const std::string& dest,
+                       const std::string& lhs,
+                       const std::string& rhs)
+    : IRInstruction(parentBloc), dest(dest), lhs(lhs), rhs(rhs) {}
+
+void IRInstrSub::printDebug(std::ostream& out) const {
+    out << "  sub " << dest << " " << lhs << " " << rhs << "\n";
+}
+
+void IRInstrSub::genX86(std::ostream& out) const {
+    int offsetLhs = parentBloc->getCFG()->getSymbolTable()->getOffset(lhs);
+    int offsetRhs = parentBloc->getCFG()->getSymbolTable()->getOffset(rhs);
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+    out << "    movl " << offsetLhs << "(%rbp), %eax\n";
+    out << "    subl " << offsetRhs << "(%rbp), %eax\n";
+    out << "    movl %eax, " << offsetDest << "(%rbp)\n";
+}
+
+void IRInstrSub::genARM(std::ostream& out) const {
+    // TODO: implémenter la logique
+}
+

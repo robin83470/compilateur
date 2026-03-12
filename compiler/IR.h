@@ -70,3 +70,22 @@ private:
     std::string lhs;
     std::string rhs;
 };
+
+//  IRInstrSub : dest = lhs - rhs
+//  Exemple IR :  sub dest lhs rhs
+class IRInstrSub : public IRInstruction {
+public:
+    IRInstrSub(IRBasicBloc* parentBloc,
+               const std::string& dest,
+               const std::string& lhs,
+               const std::string& rhs);
+
+    void printDebug(std::ostream& out) const override;
+    void genX86(std::ostream& out) const override;
+    void genARM(std::ostream& out) const override;
+
+private:
+    std::string dest;
+    std::string lhs;
+    std::string rhs;
+};
