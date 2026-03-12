@@ -249,3 +249,30 @@ void IRInstrCmp::genX86(std::ostream& out) const {
 void IRInstrCmp::genARM(std::ostream& out) const {
     // TODO: implémenter la logique
 }
+
+// ═══════════════════════════════════════════════════════════════════
+//  IRInstrXor
+// ═══════════════════════════════════════════════════════════════════
+
+IRInstrXor::IRInstrXor(IRBasicBloc* parentBloc,
+                       const std::string& dest,
+                       const std::string& lhs,
+                       const std::string& rhs)
+    : IRInstruction(parentBloc), dest(dest), lhs(lhs), rhs(rhs) {}
+
+void IRInstrXor::printDebug(std::ostream& out) const {
+    out << "  xor " << dest << " " << lhs << " " << rhs << "\n";
+}
+
+void IRInstrXor::genX86(std::ostream& out) const {
+    int offsetLhs = parentBloc->getCFG()->getSymbolTable()->getOffset(lhs);
+    int offsetRhs = parentBloc->getCFG()->getSymbolTable()->getOffset(rhs);
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+    out << "    movl " << offsetLhs << "(%rbp), %eax\n";
+    out << "    xorl " << offsetRhs << "(%rbp), %eax\n";
+    out << "    movl %eax, " << offsetDest << "(%rbp)\n";
+}
+
+void IRInstrXor::genARM(std::ostream& out) const {
+    // TODO: implémenter la logique
+}

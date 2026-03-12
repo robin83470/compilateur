@@ -174,3 +174,22 @@ private:
     std::string rhs;
     CmpType cmpType;
 };
+
+//  IRInstrXor : dest = lhs ^ rhs
+//  Exemple IR : xor dest lhs rhs
+class IRInstrXor : public IRInstruction {
+public:
+    IRInstrXor(IRBasicBloc* parentBloc,
+               const std::string& dest,
+               const std::string& lhs,
+               const std::string& rhs);
+
+    void printDebug(std::ostream& out) const override;
+    void genX86(std::ostream& out) const override;
+    void genARM(std::ostream& out) const override;
+
+private:
+    std::string dest;
+    std::string lhs;
+    std::string rhs;
+};
