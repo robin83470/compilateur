@@ -30,7 +30,6 @@ public:
     virtual antlrcpp::Any visitExpr_moinsunaire(ifccParser::Expr_moinsunaireContext* ctx) override;
     virtual antlrcpp::Any visitExpr_parenthese(ifccParser::Expr_parentheseContext* ctx) override;
     virtual antlrcpp::Any visitExpr_comparison(ifccParser::Expr_comparisonContext* ctx) override;
-    virtual antlrcpp::Any visitExpr_equality(ifccParser::Expr_equalityContext* ctx) override;
     virtual antlrcpp::Any visitExpr_and(ifccParser::Expr_andContext* ctx) override;
     virtual antlrcpp::Any visitExpr_or(ifccParser::Expr_orContext* ctx) override;
     virtual antlrcpp::Any visitExpr_xor(ifccParser::Expr_xorContext* ctx) override;
