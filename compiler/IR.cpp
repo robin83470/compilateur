@@ -97,3 +97,29 @@ void IRInstrSub::genARM(std::ostream& out) const {
     // TODO: implémenter la logique
 }
 
+// ═══════════════════════════════════════════════════════════════════
+//  IRInstrMult
+// ═══════════════════════════════════════════════════════════════════
+
+IRInstrMult::IRInstrMult(IRBasicBloc* parentBloc,
+                         const std::string& dest,
+                         const std::string& lhs,
+                         const std::string& rhs)
+    : IRInstruction(parentBloc), dest(dest), lhs(lhs), rhs(rhs) {}
+
+void IRInstrMult::printDebug(std::ostream& out) const {
+    out << "  mult " << dest << " " << lhs << " " << rhs << "\n";
+}
+
+void IRInstrMult::genX86(std::ostream& out) const {
+    int offsetLhs = parentBloc->getCFG()->getSymbolTable()->getOffset(lhs);
+    int offsetRhs = parentBloc->getCFG()->getSymbolTable()->getOffset(rhs);
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+    out << "    movl " << offsetLhs << "(%rbp), %eax\n";
+    out << "    imull " << offsetRhs << "(%rbp), %eax\n";
+    out << "    movl %eax, " << offsetDest << "(%rbp)\n";
+}
+
+void IRInstrMult::genARM(std::ostream& out) const {
+    // TODO: implémenter la logique
+}

@@ -92,6 +92,16 @@ antlrcpp::Any IRVisitor::visitExpr_plusmoins(ifccParser::Expr_plusmoinsContext* 
 antlrcpp::Any IRVisitor::visitExpr_multdiv(ifccParser::Expr_multdivContext* ctx) {
     // TODO: implémenter la logique
     return std::string("");
+    std::string lhs = std::any_cast<std::string>(visit(ctx->rhs(0)));
+    std::string rhs = std::any_cast<std::string>(visit(ctx->rhs(1)));
+    std::string tmp = currentCFG->newTemp();
+    auto* bloc = currentCFG->getCurrentBasicBloc();
+
+    std::string op = ctx->children[1]->getText();
+    if (op == "*") {
+        bloc->addInstruction(new IRInstrMult(bloc, tmp, lhs, rhs));
+    }
+    }
 }
 
 antlrcpp::Any IRVisitor::visitExpr_moinsunaire(ifccParser::Expr_moinsunaireContext* ctx) {

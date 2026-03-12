@@ -89,3 +89,23 @@ private:
     std::string lhs;
     std::string rhs;
 };
+
+//  IRInstrMult : dest = lhs * rhs
+//  Exemple IR :  mult dest lhs rhs
+class IRInstrMult : public IRInstruction {
+public:
+    IRInstrMult(IRBasicBloc* parentBloc,
+               const std::string& dest,
+               const std::string& lhs,
+               const std::string& rhs);
+
+    void printDebug(std::ostream& out) const override;
+    void genX86(std::ostream& out) const override;
+    void genARM(std::ostream& out) const override;
+
+private:
+    std::string dest;
+    std::string lhs;
+    std::string rhs;
+};
+
