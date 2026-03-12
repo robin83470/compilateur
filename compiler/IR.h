@@ -232,3 +232,18 @@ private:
     std::string lhs;
     std::string rhs;
 };
+
+// IRInstrNeg : dest = -src
+// Exemple IR : neg dest src
+class IRInstrNeg : public IRInstruction {
+public:
+    IRInstrNeg(IRBasicBloc* parentBloc, const std::string& dest, const std::string& src);
+
+    void printDebug(std::ostream& out) const override;
+    void genX86(std::ostream& out) const override;
+    void genARM(std::ostream& out) const override;
+
+    private:
+    std::string dest;
+    std::string src;
+};

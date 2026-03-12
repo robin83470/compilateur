@@ -23,7 +23,7 @@ const char* cmpTypeToString(IRInstrCmp::CmpType cmpType) {
 
 IRInstruction::IRInstruction(IRBasicBloc* parentBloc)
     : parentBloc(parentBloc) {}
-    
+
 // ═══════════════════════════════════════════════════════════════════
 //  IRInstrConst
 // ═══════════════════════════════════════════════════════════════════
@@ -330,4 +330,27 @@ void IRInstrAnd::genX86(std::ostream& out) const {
 
 void IRInstrAnd::genARM(std::ostream& out) const {
     // TODO: implémenter la logique
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// IRInstrNeg
+// ═══════════════════════════════════════════════════════════════════
+
+IRInstrNeg::IRInstrNeg(IRBasicBloc* parentBloc, const std::string& dest, const std::string& src)
+    : IRInstruction(parentBloc), dest(dest), src(src) {}
+
+void IRInstrNeg::printDebug(std::ostream& out) const {
+    out << "  neg " << dest << " " << src << "\n";
+}
+
+void IRInstrNeg::genX86(std::ostream& out) const {
+    int offsetSrc = parentBloc->getCFG()->getSymbolTable()->getOffset(src);
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+    out << "    movl " << offsetSrc << "(%rbp), %eax\n";
+    out << "    negl %eax\n";
+    out << "    movl %eax, " << offsetDest << "(%rbp)\n";
+}
+
+void IRInstrNeg::genARM(std::ostream& out) const {
+        // TODO: implémenter la logique
 }
