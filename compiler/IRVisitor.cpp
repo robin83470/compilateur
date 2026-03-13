@@ -113,9 +113,6 @@ antlrcpp::Any IRVisitor::visitExpr_multdiv(ifccParser::Expr_multdivContext* ctx)
         auto* divisorNode = ctx->rhs(1);
         if (auto* cctx = dynamic_cast<ifccParser::Expr_constContext*>(divisorNode)) {
             int val = std::stoi(cctx->CONST()->getText());
-            if (val == 0) {
-                std::cerr << "warning: division by zero " << std::endl;
-            }
         }
     }
 
