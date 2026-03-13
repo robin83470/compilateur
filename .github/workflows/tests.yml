@@ -1,0 +1,54 @@
+name: CI Tests
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3 python3-pip g++ make curl uuid-dev
+          
+      - name: Install ANTLR 4.13.2 Runtime (C++)
+        run: |
+          # Téléchargement et installation du runtime C++ en version 4.13.2
+          curl -L https://www.antlr.org/download/antlr4-cpp-runtime-4.13.2-source.zip -o antlr-runtime.zip
+          unzip antlr-runtime.zip -d antlr-runtime-src
+          mkdir antlr-runtime-build && cd antlr-runtime-build
+          cmake ../antlr-runtime-src -DANTLR4_INSTALL=ON -DCMAKE_BUILD_TYPE=Release
+          make -j$(nproc)
+          sudo make install
+          # On rafraîchit les liens vers les bibliothèques
+          sudo ldconfig
+
+      - name: Download ANTLR 4.13.2 Tool (Java)
+        run: |
+          curl -L https://www.antlr.org/download/antlr-4.13.2-complete.jar -o $GITHUB_WORKSPACE/antlr-4.13.2-complete.jar
+
+      - name: Create config.mk for GitHub
+        run: |
+          # Ici on pointe vers l'installation qu'on vient de faire dans /usr/local
+          echo "ANTLRJAR=$GITHUB_WORKSPACE/antlr-4.13.2-complete.jar" > compiler/config.mk
+          echo "ANTLRINC=/usr/local/include/antlr4-runtime/" >> compiler/config.mk
+          echo "ANTLRLIB=/usr/local/lib/libantlr4-runtime.a" >> compiler/config.mk
+
+      - name: Compile
+        run: |
+          export CLASSPATH=".:$GITHUB_WORKSPACE/antlr-4.13.2-complete.jar:$CLASSPATH"
+          make -C compiler
+
+      - name: Run ifcc tests
+        run: python3 ./ifcc-test.py testfiles

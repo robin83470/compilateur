@@ -33,7 +33,9 @@ antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx)
     for (auto stmt : ctx->stmt()) {
         this->visit(stmt);
     }
-
+    if (!this->hasReturn) {
+        std::cout << "    movl $0, %eax\n";
+    }
     // Epilogue
     std::cout<< "    movq %rbp, %rsp\n";
     std::cout<< "    popq %rbp\n";
@@ -47,6 +49,7 @@ antlrcpp::Any CodeGenVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *c
 {
     // Evaluate any RHS expression; convention: result in %eax.
     visit(ctx->rhs());
+    this->hasReturn = true;
     return 0;
 }
 
@@ -92,6 +95,30 @@ antlrcpp::Any CodeGenVisitor::visitExpr_const(ifccParser::Expr_constContext *ctx
     return 0;
 }
 
+antlrcpp::Any CodeGenVisitor::visitExpr_char(ifccParser::Expr_charContext *ctx)
+{
+    std::string txt = ctx->CHARCONST()->getText(); 
+    unsigned char c = 0;
+    if (txt.size() >= 3) {
+        if (txt[1] == '\\') {
+            char esc = txt[2];
+            switch (esc) {
+                case 'n': c = '\n'; break;
+                case 't': c = '\t'; break;
+                case 'r': c = '\r'; break;
+                case '\\': c = '\\'; break;
+                case '\'': c = '\''; break;
+                case '0': c = '\0'; break;
+                default:  c = esc;    break;
+            }
+        } else {
+            c = txt[1];
+        }
+    }
+    int val = (int)c;
+    std::cout << "    movl $" << val << ", %eax\n";
+    return 0;
+}
 
 
 antlrcpp::Any CodeGenVisitor::visitExpr_id(ifccParser::Expr_idContext *ctx)
@@ -127,11 +154,13 @@ antlrcpp::Any CodeGenVisitor::visitExpr_multdiv(ifccParser::Expr_multdivContext 
 
     std::string op = ctx->children[1]->getText();
     std::cout << "    movl %ecx, %eax\n";
-
-    if ((op == "/" || op == "%")) {
-        int val = std::stoi(ctx->rhs(1)->getText());
-        if (val == 0) {
-            std::cerr << "warning: division by zero  '"<< std::endl; // L'erreur va se faire par le systéme en renvoyant 136
+    if (op == "/" || op == "%") {
+        auto diviseur_node = ctx->rhs(1);
+        if (auto cctx = dynamic_cast<ifccParser::Expr_constContext*>(diviseur_node)) {
+            int val = std::stoi(cctx->CONST()->getText());
+            if (val == 0) {
+                std::cerr << "warning: division by zero " << std::endl;
+            }
         }
     }
     if(op == "*") {
@@ -157,9 +186,81 @@ antlrcpp::Any CodeGenVisitor::visitExpr_moinsunaire(ifccParser::Expr_moinsunaire
     if (op =="-"){
         std::cout << "    negl %eax\n";   // %eax = -%eax
     }
+    if (op=="!"){
+        std::cout << "    testl %eax, %eax\n";
+        std::cout << "    sete %al\n";
+        std::cout << "    movzbl %al, %eax\n";
+    }
     return 0;
 }
 
 antlrcpp::Any CodeGenVisitor::visitExpr_parenthese(ifccParser::Expr_parentheseContext *ctx) {
     return visit(ctx->rhs());
+}
+
+antlrcpp::Any CodeGenVisitor::visitExpr_comparison(ifccParser::Expr_comparisonContext *ctx) {
+    visit(ctx->rhs(0));
+    std::cout << "    pushq %rax\n";
+    visit(ctx->rhs(1));
+    std::cout << "    popq %rcx\n";
+    std::cout << "    cmpl %eax, %ecx\n";
+
+    std::string op = ctx->children[1]->getText();
+    if (op == "<")
+        std::cout << "    setl %al\n";
+    else if (op == ">")
+        std::cout << "    setg %al\n";
+    else if (op == "<=")
+        std::cout << "    setle %al\n";
+    else if (op == ">=")
+        std::cout << "    setge %al\n";
+
+    std::cout << "    movzbl %al, %eax\n";
+    return 0;
+}
+
+antlrcpp::Any CodeGenVisitor::visitExpr_equality(ifccParser::Expr_equalityContext *ctx) {
+    visit(ctx->rhs(0));
+    std::cout << "    pushq %rax\n";
+    visit(ctx->rhs(1));
+    std::cout << "    popq %rcx\n";
+    std::cout << "    cmpl %eax, %ecx\n";
+
+    std::string op = ctx->children[1]->getText();
+    if (op == "==")
+        std::cout << "    sete %al\n";
+    else if (op == "!=")
+        std::cout << "    setne %al\n";
+
+    std::cout << "    movzbl %al, %eax\n";
+    return 0;
+}
+
+
+
+antlrcpp::Any CodeGenVisitor::visitExpr_and(ifccParser::Expr_andContext *ctx) {
+    visit(ctx->rhs(0)); 
+    std::cout << "    pushq %rax\n";
+    visit(ctx->rhs(1)); 
+    std::cout << "    popq %rcx\n"; 
+    std::cout << "    andl %ecx, %eax\n"; 
+    return 0;
+}
+
+antlrcpp::Any CodeGenVisitor::visitExpr_or(ifccParser::Expr_orContext *ctx) {
+    visit(ctx->rhs(0)); 
+    std::cout << "    pushq %rax\n";
+    visit(ctx->rhs(1)); 
+    std::cout << "    popq %rcx\n"; 
+    std::cout << "    orl %ecx, %eax\n"; // %eax = gauche | droite
+    return 0;
+}
+
+antlrcpp::Any CodeGenVisitor::visitExpr_xor(ifccParser::Expr_xorContext *ctx) {
+    visit(ctx->rhs(0)); 
+    std::cout << "    pushq %rax\n";
+    visit(ctx->rhs(1)); 
+    std::cout << "    popq %rcx\n"; 
+    std::cout << "    xorl %ecx, %eax\n"; // %eax = gauche ^ droite
+    return 0;
 }

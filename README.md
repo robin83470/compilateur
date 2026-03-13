@@ -1,7 +1,5 @@
 # PLD Compilateur
-
 Ce projet est un compilateur pour le langage C.
-
 ## Compilation du compilateur
 
 Pour compiler le compilateur `ifcc`, placez-vous dans le dossier `compiler` et exécutez la commande `make` :
@@ -64,15 +62,6 @@ Ce script :
 - `testfiles/InvalidPrograms/` : Programmes C invalides (pour tester les erreurs)
 
 ## Fonctionnalités supportées
-
-Le compilateur supporte actuellement les fonctionnalités suivantes, validées par les tests :
-          -déclaration et définition de variable (int seulement)
-          -arithmétique (+,- ,*,/,%) entre constante et variable
-          -parenthèse et moins unaire
-          -retour
-
-Fonctionnalité detectée non supporter : 
-          - plus unaire (commencer par un plus)
 
 
 ### Types de base
