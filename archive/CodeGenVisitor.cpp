@@ -264,3 +264,4 @@ antlrcpp::Any CodeGenVisitor::visitExpr_xor(ifccParser::Expr_xorContext *ctx) {
     std::cout << "    xorl %ecx, %eax\n"; // %eax = gauche ^ droite
     return 0;
 }
+No newline at end of file
