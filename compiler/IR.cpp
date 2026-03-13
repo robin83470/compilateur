@@ -441,6 +441,28 @@ void IRInstrNeg::genARM(std::ostream& out) const {
     arm_codegen::emitStoreWToOffset(out, offsetDest, "w10");
 }
 // ═══════════════════════════════════════════════════════════════════
+// IRInstrPutchar
+// ═══════════════════════════════════════════════════════════════════
+IRInstrPutchar::IRInstrPutchar(IRBasicBloc* parentBloc, const std::string& dest, const std::string& src)
+    : IRInstruction(parentBloc), dest(dest), src(src) {}
+
+void IRInstrPutchar::printDebug(std::ostream& out) const {
+    out << "  putchar " << dest << " " << src << "\n";
+}
+
+void IRInstrPutchar::genX86(std::ostream& out) const {
+    int offsetSrc = parentBloc->getCFG()->getSymbolTable()->getOffset(src);
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+    out << "    movl " << offsetSrc << "(%rbp), %edi\n"; // on met l'argument dans %edi
+    out << "    callq _putchar\n"; // appel à putchar
+    out << "    movl %eax, " << offsetDest << "(%rbp)\n"; // stocker la valeur de retour
+}
+
+void IRInstrPutchar::genARM(std::ostream& out) const {
+    // TODO: implémenter la logique
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // IRInstrGetchar
 // ═══════════════════════════════════════════════════════════════════
 

@@ -314,3 +314,27 @@ antlrcpp::Any IRVisitor::visitExpr_getchar(ifccParser::Expr_getcharContext* ctx)
     bloc->addInstruction(new IRInstrGetchar(bloc, tmp));
     return tmp;
 }
+
+antlrcpp::Any IRVisitor::visitExpr_putchar(ifccParser::Expr_putcharContext* ctx) {
+    std::string arg;
+    auto* bloc = currentCFG->getCurrentBasicBloc();
+    auto* ioArg = ctx->io_arg();
+    if (ioArg->CONST()) {
+        arg = currentCFG->newTemp();
+        bloc->addInstruction(new IRInstrConst(bloc, arg, std::stoi(ioArg->CONST()->getText())));
+    } else if (ioArg->CHARCONST()) {
+        std::string text = ioArg->CHARCONST()->getText();
+        int val = (text[1] == '\\') ? text[2] : text[1];
+        arg = currentCFG->newTemp();
+        bloc->addInstruction(new IRInstrConst(bloc, arg, val));
+    } else if (ioArg->ID()) {
+        arg = ioArg->ID()->getText();
+    } else {
+        arg = currentCFG->newTemp();
+        bloc->addInstruction(new IRInstrGetchar(bloc, arg));
+    }
+
+    std::string tmp = currentCFG->newTemp();
+    bloc->addInstruction(new IRInstrPutchar(bloc, tmp, arg));
+    return tmp;
+}

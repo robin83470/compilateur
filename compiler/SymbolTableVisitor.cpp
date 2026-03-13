@@ -107,6 +107,14 @@ antlrcpp::Any SymbolTableVisitor::visitExpr_getchar(ifccParser::Expr_getcharCont
     return 0;
 }
 
+antlrcpp::Any SymbolTableVisitor::visitExpr_putchar(ifccParser::Expr_putcharContext *ctx) {
+    auto* ioArg = ctx->io_arg();
+    if (ioArg->ID()) {
+        checkVariableUsed(ioArg->ID()->getText());
+    }
+    return 0;
+}
+
 void SymbolTableVisitor::checkVariableUsed(const std::string& varName) {
     // getSymbol() sort en erreur si la variable n'existe pas
     symbolTable.getSymbol(varName).used = true;
