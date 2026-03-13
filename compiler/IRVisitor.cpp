@@ -184,3 +184,73 @@ antlrcpp::Any IRVisitor::visitExpr_xor(ifccParser::Expr_xorContext* ctx) {
     bloc->addInstruction(new IRInstrXor(bloc, tmp, lhs, rhs));
     return tmp;
 }
+
+
+
+
+
+antlrcpp::Any IRVisitor::visitIf_elsifelse(ifccParser::If_elsifelseContext *ctx)
+{
+    IRBasicBloc* currentTestBloc = currentCFG->getCurrentBasicBloc();
+
+    size_t nConds = ctx->rhs().size();
+    size_t nBlocks = ctx->block().size();
+
+    // On prépare les blocs "then"
+    std::vector<IRBasicBloc*> thenBlocs;
+    for (size_t i = 0; i < nConds; i++) {
+        thenBlocs.push_back(currentCFG->addBasicBloc(".then_" + std::to_string(i)));
+    }
+
+    // On prépare les blocs de test suivants / else
+    std::vector<IRBasicBloc*> falseBlocs;
+    for (size_t i = 1; i < nConds; i++) {
+        falseBlocs.push_back(currentCFG->addBasicBloc(".test_" + std::to_string(i)));
+    }
+
+    IRBasicBloc* elseBloc = nullptr;
+    if (nBlocks > nConds) {
+        elseBloc = currentCFG->addBasicBloc(".else");
+    }
+
+
+    IRBasicBloc* exitBloc = currentCFG->addBasicBloc(".if_exit");
+
+    for (size_t i = 0; i < nConds; i++) {
+        currentCFG->setCurrentBasicBloc(currentTestBloc);
+
+        std::string testVarName = std::any_cast<std::string>(visit(ctx->rhs(i)));
+
+        IRBasicBloc* falseDest = nullptr;
+        if (i + 1 < nConds) {
+            falseDest = falseBlocs[i];
+        } else if (elseBloc != nullptr) {
+            falseDest = elseBloc;
+        } else {
+            falseDest = exitBloc;
+        }
+
+        currentTestBloc->setTestVarName(testVarName);
+        currentTestBloc->setExitTrue(thenBlocs[i]);
+        currentTestBloc->setExitFalse(falseDest);
+
+        // Corps du then / elsif
+        currentCFG->setCurrentBasicBloc(thenBlocs[i]);
+        visit(ctx->block(i));
+        currentCFG->getCurrentBasicBloc()->setExitTrue(exitBloc);
+
+        if (i + 1 < nConds) {
+            currentTestBloc = falseBlocs[i];
+        }
+    }
+
+    // else final éventuel
+    if (elseBloc != nullptr) {
+        currentCFG->setCurrentBasicBloc(elseBloc);
+        visit(ctx->block(nBlocks - 1));
+        currentCFG->getCurrentBasicBloc()->setExitTrue(exitBloc);
+    }
+
+    currentCFG->setCurrentBasicBloc(exitBloc);
+    return 0;
+}

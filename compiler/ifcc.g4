@@ -4,7 +4,7 @@ axiom : prog EOF ;
 
 prog : 'int' 'main' '(' ')' '{' stmt* '}' ;
 
-stmt : return_stmt | declaration_stmt | assign_stmt ;
+stmt : return_stmt | declaration_stmt | assign_stmt | if_stmt ;
 
 return_stmt : RETURN rhs ';' ;
 
@@ -12,6 +12,9 @@ declarator : ID (EQUAL rhs)? ;
 declaration_stmt : 'int' declarator (',' declarator)* ';' ;
 assign_stmt : ID EQUAL rhs ';' ;
 
+block : '{' stmt* '}' ;
+
+if_stmt: 'if' '(' rhs ')' block ('else' 'if' '(' rhs ')' block)* ('else' block)? #if_elsifelse ;
 
 rhs : 
     ('+'|'-'|'!') rhs                      # Expr_moinsunaire
