@@ -13,3 +13,4 @@ ifcc
 
 config.mk
 ifcc-test-output/
+compiler/test_ir.dSYM/
