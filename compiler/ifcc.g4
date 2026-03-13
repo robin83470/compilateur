@@ -28,12 +28,18 @@ rhs :
     | rhs BOR rhs                      # Expr_or
     | rhs BXOR rhs                     # Expr_xor
     | '(' rhs ')'                      # Expr_parenthese
+    | GETCHAR '(' ')'                  # Expr_getchar
+    | PUTCHAR '(' io_arg ')'           # Expr_putchar
     | CONST                            # Expr_const
     | CHARCONST                        # Expr_char
     | ID                               # Expr_id
 ;
 
+io_arg : GETCHAR '(' ')' | CONST | CHARCONST | ID ;
+
 RETURN : 'return' ;
+GETCHAR : 'getchar' ;
+PUTCHAR : 'putchar' ;
 CONST : [0-9]+ ;
 CHARCONST : '\'' ( '\\' . | ~('\\'|'\'') ) '\'' ;
 COMMENT : '/*' .*? '*/' -> skip ;
