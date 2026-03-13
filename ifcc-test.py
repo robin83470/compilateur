@@ -15,6 +15,13 @@ import shutil
 import sys
 import subprocess
 
+def normalize_target(value):
+    if value == 'arm64':
+        return 'aarch64'
+    if value in ['x86_64', 'aarch64']:
+        return value
+    raise argparse.ArgumentTypeError("target must be one of: x86_64, aarch64, arm64")
+
 def run_command(string, logfile=None, toscreen=False):
     """ execute `string` as a shell command. Maybe write stdout+stderr to `logfile` and/or to the toscreen.
         return the exit status""" 
@@ -64,6 +71,7 @@ description = "Testing script for the ifcc compiler. operates in one of two mode
     +twf("- Single-file mode (with options -o,-c and/or -S): Compile and/or assemble and/or link a single program."),
 epilog="examples:\n\n"
     +twf("python3 ifcc-test.py testfiles")+'\n'
+    +twf("python3 ifcc-test.py --target aarch64 testfiles")+'\n'
     +twf("python3 ifcc-test.py path/to/some/dir/*.c path/to/some/other/dir")+'\n'
     +'\n'
     +twf("python3 ifcc-test.py -o ./myprog path/to/some/source.c")+'\n'
@@ -82,6 +90,8 @@ argparser.add_argument('-d','--debug',action="count",default=0,
 argparser.add_argument('-S',action = "store_true", help='single-file mode: compile from C to assembly, but do not assemble')
 argparser.add_argument('-c',action = "store_true", help='single-file mode: compile/assemble to machine code, but do not link')
 argparser.add_argument('-o','--output',metavar = 'OUTPUTNAME', help='single-file mode: write output to that file')
+argparser.add_argument('--target', type=normalize_target, default='x86_64',
+                       help='target architecture passed to ifcc (x86_64 or aarch64). Default: x86_64')
 
 args=argparser.parse_args()
 
@@ -96,6 +106,8 @@ if "ifcc-test-output" in orig_cwd:
 pld_base_dir=os.path.normpath(os.path.dirname(__file__))
 if args.debug:
     print("ifcc-test.py: "+os.path.dirname(__file__))
+
+ifcc_cmd=f'{pld_base_dir}/compiler/ifcc --target {args.target}'
 
 # cleanup stale output directory
 if os.path.isdir(f'{pld_base_dir}/ifcc-test-output'):
@@ -140,9 +152,9 @@ if args.S or args.c or args.output:
         if args.output[-2:] != ".s":
             print("error: output file name must end with '.s'")
             exit(1)
-        ifccstatus=run_command(f'{pld_base_dir}/compiler/ifcc {inputfilename} > {args.output}')
+        ifccstatus=run_command(f'{ifcc_cmd} {inputfilename} > {args.output}')
         if ifccstatus: # let's show error messages on screen
-            exit(run_command(f'{pld_base_dir}/compiler/ifcc {inputfilename}',toscreen=True))
+            exit(run_command(f'{ifcc_cmd} {inputfilename}',toscreen=True))
         else:
             exit(0)
 
@@ -151,9 +163,9 @@ if args.S or args.c or args.output:
             print("error: output file name must end with '.o'")
             exit(1)
         asmname=args.output[:-2]+".s"
-        ifccstatus=run_command(f'{pld_base_dir}/compiler/ifcc {inputfilename} > {asmname}')
+        ifccstatus=run_command(f'{ifcc_cmd} {inputfilename} > {asmname}')
         if ifccstatus: # let's show error messages on screen
-            exit(run_command(f'{pld_base_dir}/compiler/ifcc {inputfilename}',toscreen=True))
+            exit(run_command(f'{ifcc_cmd} {inputfilename}',toscreen=True))
         exit(run_command(f'gcc -c -o {args.output} {asmname}',toscreen=True))
         
     else: # produce an executable
@@ -161,9 +173,9 @@ if args.S or args.c or args.output:
             print("error: incorrect name for an executable: "+args.output)
             exit(1)
         asmname=args.output+".s"
-        ifccstatus=run_command(f'{pld_base_dir}/compiler/ifcc {inputfilename} > {asmname}')
+        ifccstatus=run_command(f'{ifcc_cmd} {inputfilename} > {asmname}')
         if ifccstatus:
-            exit(run_command(f'{pld_base_dir}/compiler/ifcc {inputfilename}', toscreen=True))
+            exit(run_command(f'{ifcc_cmd} {inputfilename}', toscreen=True))
         exit(run_command(f'gcc -o {args.output} {asmname}'))
 
     # we should never end up here
@@ -281,7 +293,7 @@ for jobname in jobs:
             dumpfile("gcc-execute.txt")
             
     ## IFCC compiler
-    ifccstatus=run_command(f'{pld_base_dir}/compiler/ifcc input.c > asm-ifcc.s', 'ifcc-compile.txt')
+    ifccstatus=run_command(f'{ifcc_cmd} input.c > asm-ifcc.s', 'ifcc-compile.txt')
     
     if gccstatus != 0 and ifccstatus != 0:
         ## ifcc correctly rejects invalid program -> test-case ok
@@ -331,3 +343,8 @@ for jobname in jobs:
 
 if not (all_ok or args.verbose):
     print("Some test-cases failed. Run ifcc-test.py with option '--verbose' for more detailed feedback.")
+
+if all_ok:
+    sys.exit(0)
+else:
+    sys.exit(1)

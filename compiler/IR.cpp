@@ -1,5 +1,8 @@
 #include "IR.h"
 #include "CFG.h"
+#include "ArmCodegenUtils.h"
+
+#include <stdexcept>
 
 namespace {
 const char* cmpTypeToString(IRInstrCmp::CmpType cmpType) {
@@ -18,6 +21,24 @@ const char* cmpTypeToString(IRInstrCmp::CmpType cmpType) {
             return "neq";
     }
     return "?";
+}
+
+const char* cmpTypeToArmCondition(IRInstrCmp::CmpType cmpType) {
+    switch (cmpType) {
+        case IRInstrCmp::LT:
+            return "lt";
+        case IRInstrCmp::LE:
+            return "le";
+        case IRInstrCmp::GT:
+            return "gt";
+        case IRInstrCmp::GE:
+            return "ge";
+        case IRInstrCmp::EQ:
+            return "eq";
+        case IRInstrCmp::NEQ:
+            return "ne";
+    }
+    throw std::runtime_error("Unknown comparison type");
 }
 }
 
@@ -40,7 +61,9 @@ void IRInstrConst::genX86(std::ostream& out) const {
 }
 
 void IRInstrConst::genARM(std::ostream& out) const {
-    // TODO: implémenter la logique
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+    arm_codegen::emitLoadImm32(out, "w9", value);
+    arm_codegen::emitStoreWToOffset(out, offsetDest, "w9");
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -61,7 +84,10 @@ void IRInstrCopy::genX86(std::ostream& out) const {
 }
 
 void IRInstrCopy::genARM(std::ostream& out) const {
-    // TODO: implémenter la logique
+    int offsetSrc = parentBloc->getCFG()->getSymbolTable()->getOffset(src);
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+    arm_codegen::emitLoadWFromOffset(out, offsetSrc, "w9");
+    arm_codegen::emitStoreWToOffset(out, offsetDest, "w9");
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -87,7 +113,13 @@ void IRInstrAdd::genX86(std::ostream& out) const {
 }
 
 void IRInstrAdd::genARM(std::ostream& out) const {
-    // TODO: implémenter la logique
+    int offsetLhs = parentBloc->getCFG()->getSymbolTable()->getOffset(lhs);
+    int offsetRhs = parentBloc->getCFG()->getSymbolTable()->getOffset(rhs);
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+    arm_codegen::emitLoadWFromOffset(out, offsetLhs, "w9");
+    arm_codegen::emitLoadWFromOffset(out, offsetRhs, "w10");
+    out << "    add w11, w9, w10\n";
+    arm_codegen::emitStoreWToOffset(out, offsetDest, "w11");
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -114,7 +146,13 @@ void IRInstrSub::genX86(std::ostream& out) const {
 }
 
 void IRInstrSub::genARM(std::ostream& out) const {
-    // TODO: implémenter la logique
+    int offsetLhs = parentBloc->getCFG()->getSymbolTable()->getOffset(lhs);
+    int offsetRhs = parentBloc->getCFG()->getSymbolTable()->getOffset(rhs);
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+    arm_codegen::emitLoadWFromOffset(out, offsetLhs, "w9");
+    arm_codegen::emitLoadWFromOffset(out, offsetRhs, "w10");
+    out << "    sub w11, w9, w10\n";
+    arm_codegen::emitStoreWToOffset(out, offsetDest, "w11");
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -141,7 +179,13 @@ void IRInstrMult::genX86(std::ostream& out) const {
 }
 
 void IRInstrMult::genARM(std::ostream& out) const {
-    // TODO: implémenter la logique
+    int offsetLhs = parentBloc->getCFG()->getSymbolTable()->getOffset(lhs);
+    int offsetRhs = parentBloc->getCFG()->getSymbolTable()->getOffset(rhs);
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+    arm_codegen::emitLoadWFromOffset(out, offsetLhs, "w9");
+    arm_codegen::emitLoadWFromOffset(out, offsetRhs, "w10");
+    out << "    mul w11, w9, w10\n";
+    arm_codegen::emitStoreWToOffset(out, offsetDest, "w11");
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -169,7 +213,13 @@ void IRInstrDiv::genX86(std::ostream& out) const {
 }
 
 void IRInstrDiv::genARM(std::ostream& out) const {
-    // TODO: implémenter la logique
+    int offsetLhs = parentBloc->getCFG()->getSymbolTable()->getOffset(lhs);
+    int offsetRhs = parentBloc->getCFG()->getSymbolTable()->getOffset(rhs);
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+    arm_codegen::emitLoadWFromOffset(out, offsetLhs, "w9");
+    arm_codegen::emitLoadWFromOffset(out, offsetRhs, "w10");
+    out << "    sdiv w11, w9, w10\n";
+    arm_codegen::emitStoreWToOffset(out, offsetDest, "w11");
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -196,7 +246,14 @@ void IRInstrMod::genX86(std::ostream& out) const {
 }
 
 void IRInstrMod::genARM(std::ostream& out) const {
-    // TODO: implémenter la logique
+    int offsetLhs = parentBloc->getCFG()->getSymbolTable()->getOffset(lhs);
+    int offsetRhs = parentBloc->getCFG()->getSymbolTable()->getOffset(rhs);
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+    arm_codegen::emitLoadWFromOffset(out, offsetLhs, "w9");
+    arm_codegen::emitLoadWFromOffset(out, offsetRhs, "w10");
+    out << "    sdiv w11, w9, w10\n";
+    out << "    msub w11, w11, w10, w9\n";
+    arm_codegen::emitStoreWToOffset(out, offsetDest, "w11");
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -247,7 +304,14 @@ void IRInstrCmp::genX86(std::ostream& out) const {
 }
 
 void IRInstrCmp::genARM(std::ostream& out) const {
-    // TODO: implémenter la logique
+    int offsetLhs = parentBloc->getCFG()->getSymbolTable()->getOffset(lhs);
+    int offsetRhs = parentBloc->getCFG()->getSymbolTable()->getOffset(rhs);
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+    arm_codegen::emitLoadWFromOffset(out, offsetLhs, "w9");
+    arm_codegen::emitLoadWFromOffset(out, offsetRhs, "w10");
+    out << "    cmp w9, w10\n";
+    out << "    cset w11, " << cmpTypeToArmCondition(cmpType) << "\n";
+    arm_codegen::emitStoreWToOffset(out, offsetDest, "w11");
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -274,7 +338,13 @@ void IRInstrXor::genX86(std::ostream& out) const {
 }
 
 void IRInstrXor::genARM(std::ostream& out) const {
-    // TODO: implémenter la logique
+    int offsetLhs = parentBloc->getCFG()->getSymbolTable()->getOffset(lhs);
+    int offsetRhs = parentBloc->getCFG()->getSymbolTable()->getOffset(rhs);
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+    arm_codegen::emitLoadWFromOffset(out, offsetLhs, "w9");
+    arm_codegen::emitLoadWFromOffset(out, offsetRhs, "w10");
+    out << "    eor w11, w9, w10\n";
+    arm_codegen::emitStoreWToOffset(out, offsetDest, "w11");
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -301,7 +371,13 @@ void IRInstrOr::genX86(std::ostream& out) const {
 }
 
 void IRInstrOr::genARM(std::ostream& out) const {
-    // TODO: implémenter la logique
+    int offsetLhs = parentBloc->getCFG()->getSymbolTable()->getOffset(lhs);
+    int offsetRhs = parentBloc->getCFG()->getSymbolTable()->getOffset(rhs);
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+    arm_codegen::emitLoadWFromOffset(out, offsetLhs, "w9");
+    arm_codegen::emitLoadWFromOffset(out, offsetRhs, "w10");
+    out << "    orr w11, w9, w10\n";
+    arm_codegen::emitStoreWToOffset(out, offsetDest, "w11");
 }
 
 
@@ -329,7 +405,13 @@ void IRInstrAnd::genX86(std::ostream& out) const {
 }
 
 void IRInstrAnd::genARM(std::ostream& out) const {
-    // TODO: implémenter la logique
+    int offsetLhs = parentBloc->getCFG()->getSymbolTable()->getOffset(lhs);
+    int offsetRhs = parentBloc->getCFG()->getSymbolTable()->getOffset(rhs);
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+    arm_codegen::emitLoadWFromOffset(out, offsetLhs, "w9");
+    arm_codegen::emitLoadWFromOffset(out, offsetRhs, "w10");
+    out << "    and w11, w9, w10\n";
+    arm_codegen::emitStoreWToOffset(out, offsetDest, "w11");
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -352,5 +434,9 @@ void IRInstrNeg::genX86(std::ostream& out) const {
 }
 
 void IRInstrNeg::genARM(std::ostream& out) const {
-        // TODO: implémenter la logique
+    int offsetSrc = parentBloc->getCFG()->getSymbolTable()->getOffset(src);
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+    arm_codegen::emitLoadWFromOffset(out, offsetSrc, "w9");
+    out << "    neg w10, w9\n";
+    arm_codegen::emitStoreWToOffset(out, offsetDest, "w10");
 }

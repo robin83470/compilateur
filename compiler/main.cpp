@@ -2,6 +2,7 @@
 #include <fstream>
 #include <sstream>
 #include <cstdlib>
+#include <exception>
 #include <memory>
 
 #include "antlr4-runtime.h"
@@ -125,26 +126,27 @@ int main(int argn, const char **argv)
         cerr << "Erreur lexicale" << endl;
         exit(1);
     }
-    SymbolTableVisitor symbolTableVisitor;
-    symbolTableVisitor.visit(tree);
+    IRControlFlowGraph* cfg = nullptr;
+    try {
+        SymbolTableVisitor symbolTableVisitor;
+        symbolTableVisitor.visit(tree);
 
-    IRVisitor irVisitor(&symbolTableVisitor.symbolTable);
-    IRControlFlowGraph* cfg = irVisitor.buildIr(tree);
+        IRVisitor irVisitor(&symbolTableVisitor.symbolTable);
+        cfg = irVisitor.buildIr(tree);
 
-    if (target == TargetArch::AARCH64) {
-        cerr << "error: target aarch64 selected, but ARM code generation is not implemented yet (phase 2)." << endl;
+        unique_ptr<BackEnd> backend;
+        if (target == TargetArch::X86_64) {
+            backend = make_unique<X86BackEnd>(cfg);
+        } else {
+            backend = make_unique<ARMBackEnd>(cfg);
+        }
+
+        backend->generateCode(cout);
+    } catch (const exception& e) {
         delete cfg;
+        cerr << "error: " << e.what() << endl;
         return 1;
     }
-
-    unique_ptr<BackEnd> backend;
-    if (target == TargetArch::X86_64) {
-        backend = make_unique<X86BackEnd>(cfg);
-    } else {
-        backend = make_unique<ARMBackEnd>(cfg);
-    }
-
-    backend->generateCode(cout);
 
     delete cfg;
 

@@ -33,4 +33,8 @@ public:
     explicit ARMBackEnd(IRControlFlowGraph* cfg) : BackEnd(cfg) {}
 
     void generateCode(std::ostream& out) override;
+
+private:
+    void generatePrologue(std::ostream& out);
+    void generateEpilogue(std::ostream& out);
 };
