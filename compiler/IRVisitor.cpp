@@ -120,13 +120,25 @@ antlrcpp::Any IRVisitor::visitExpr_moinsunaire(ifccParser::Expr_moinsunaireConte
     if (ctx->children[0]->getText() == "+") {
         return operand;
     }
-
-    std::string zero = currentCFG->newTemp();
-    std::string tmp = currentCFG->newTemp();
-    auto* bloc = currentCFG->getCurrentBasicBloc();
-    bloc->addInstruction(new IRInstrConst(bloc, zero, 0));
-    bloc->addInstruction(new IRInstrSub(bloc, tmp, zero, operand));
-    return tmp;
+    else if (ctx->children[0]->getText() == "-") {
+        std::string zero = currentCFG->newTemp();
+        std::string tmp = currentCFG->newTemp();
+        auto* bloc = currentCFG->getCurrentBasicBloc();
+        bloc->addInstruction(new IRInstrConst(bloc, zero, 0));
+        bloc->addInstruction(new IRInstrSub(bloc, tmp, zero, operand));
+        return tmp;
+    }
+    else if (ctx->children[0]->getText() == "!") {
+        std::string zero = currentCFG->newTemp();
+        std::string tmp = currentCFG->newTemp();
+        auto* bloc = currentCFG->getCurrentBasicBloc();
+        bloc->addInstruction(new IRInstrConst(bloc, zero, 0));
+        bloc->addInstruction(new IRInstrCmp(bloc, tmp, operand, zero, IRInstrCmp::EQ));
+        return tmp;
+    }
+    else {
+        throw std::runtime_error("Unexpected unary operator: " + ctx->children[0]->getText());
+    }
 }
 
 antlrcpp::Any IRVisitor::visitExpr_parenthese(ifccParser::Expr_parentheseContext* ctx) {
