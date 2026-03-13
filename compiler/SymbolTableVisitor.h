@@ -6,7 +6,7 @@
 
 class SymbolTableVisitor : public ifccBaseVisitor {
     public:
-        SymbolTable symbolTable; 
+        SymbolTable symbolTable;
 
         virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override;
         virtual antlrcpp::Any visitDeclaration_stmt(ifccParser::Declaration_stmtContext *ctx) override;
@@ -29,5 +29,4 @@ class SymbolTableVisitor : public ifccBaseVisitor {
         virtual antlrcpp::Any visitExpr_putchar(ifccParser::Expr_putcharContext *ctx) override;
     private:
         void checkVariableUsed(const std::string& varName);
-};};
 };
