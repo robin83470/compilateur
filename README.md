@@ -1,5 +1,6 @@
 # PLD Compilateur
 Ce projet est un compilateur pour le langage C.
+
 ## Compilation du compilateur
 
 Pour compiler le compilateur `ifcc`, placez-vous dans le dossier `compiler` et exécutez la commande `make` :
@@ -17,7 +18,7 @@ Le compilateur prend en entrée un fichier source C et génère du code assemble
 
 ### Cibles supportées
 
-- `x86_64` : Intel Mac
+- `x86_64` : Intel 64 bits
 - `aarch64` : Apple Silicon (M series)
 
 Par défaut, la cible est `x86_64`.
@@ -31,7 +32,7 @@ Par défaut, la cible est `x86_64`.
 ### Exemples de génération
 
 ```bash
-# Intel Mac
+# Intel
 ./ifcc --target x86_64 exemple.c > exemple-x86.s
 
 # Apple Silicon Mac (M1/M2/M3/...)
@@ -56,16 +57,6 @@ gcc exemple.s -o exemple
 echo $?
 # Devrait afficher 42
 ```
-
-### Statut ARM (phase 2)
-
-Le backend ARM en phase 2 inclut :
-
-- Prologue/epilogue de fonction
-- Emission CFG (labels et branchements)
-- Instructions IR ARM `const` et `copy`
-
-Les autres instructions IR ARM (add/sub/mult/div/mod/comparaisons/logiques) ne sont pas encore portées.
 
 ## Exécution des tests
 
@@ -98,8 +89,8 @@ Ce script :
 - `testfiles/ValidPrograms/` : Programmes C valides
 - `testfiles/InvalidPrograms/` : Programmes C invalides (pour tester les erreurs)
 
-## Fonctionnalités supportées
 
+## Fonctionnalités supportées
 
 ### Types de base
 - `int` : Type entier
