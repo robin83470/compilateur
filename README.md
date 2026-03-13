@@ -85,6 +85,7 @@ Ce script :
 - Assemble et lie les programmes
 - Exécute les programmes et compare les codes de retour
 - Génère des logs et des fichiers de sortie dans le dossier `ifcc-test-output`
+- Supporte un fichier compagnon `nom_du_test.stdin` pour fournir une entrée standard afin de faire les tests avec des I/O, notamment ceux utilisant `getchar`
 
 ### Structure des tests
 
@@ -109,6 +110,7 @@ Ce script :
 
 ### Expressions arithmétiques
 - Constantes entières : `42`
+- Constantes caractère : `'a'`, `'\n'`, `'\t'`, `'\''`, `'\\'`
 - Variables : `a`
 - Opérateurs unaires : `+`, `-`, `!`
 - Opérateurs binaires arithmétiques : `+`, `-`, `*`, `/`, `%`
@@ -129,6 +131,15 @@ Ce script :
 - `if (...) { ... } else if (...) { ... } else { ... }`
 - `while (...) { ... }`
 
+### Entrées / sorties standard
+- `getchar()` : lecture d'un caractère depuis l'entrée standard, avec retour `int`
+- `putchar(expr)` : écriture d'un caractère sur la sortie standard, avec retour `int`
+- `putchar` accepte actuellement comme argument :
+  - une constante entière
+  - une constante caractère
+  - une variable
+  - `getchar()`
+
 ### Prétraitement et commentaires
 - Lignes de directives préprocesseur (`#...`) ignorées par le parser
 - Commentaires C bloc `/* ... */`
@@ -143,11 +154,13 @@ Ce script :
 ### Limitations
 - Uniquement `int main()` sans paramètres
 - Pas de types autres que `int` (pas de `char`, `float`, etc.)
-- Pas d'appels de fonctions
+- Pas de définition de fonctions utilisateur
+- Pas d'appels de fonctions génériques
+- Seuls les builtins `getchar()` et `putchar(...)` sont pris en charge pour l'instant
 - Pas de tableaux, pointeurs, structures
 - Pas de `for`, `do ... while`, `switch`, `break`, `continue`
 - Pas d'opérateurs logiques court-circuit (`&&`, `||`)
-- Littéraux de caractère non pris en charge côté génération de code
+- `putchar` ne prend pas encore en charge une expression arithmétique générale comme argument
 
 
 ## Dépendances
