@@ -247,3 +247,32 @@ public:
     std::string dest;
     std::string src;
 };
+
+class IRInstrRet : public IRInstruction {
+public:
+    IRInstrRet(IRBasicBloc* parentBloc, const std::string& src);
+
+    void printDebug(std::ostream& out) const override;
+    void genX86(std::ostream& out) const override;
+    void genARM(std::ostream& out) const override;
+
+private:
+    std::string src; // Return
+};
+
+class IRInstrCall : public IRInstruction {
+public:
+    IRInstrCall(IRBasicBloc* parentBloc, 
+                const std::string& dest, 
+                const std::string& funcName, 
+                const std::vector<std::string>& args);
+
+    void printDebug(std::ostream& out) const override;
+    void genX86(std::ostream& out) const override;
+    void genARM(std::ostream& out) const override;
+
+private:
+    std::string dest;      // Variable où on stocke le résultat
+    std::string funcName;  // Nom de la fonction à appeler
+    std::vector<std::string> args; // Liste des variables passées en arguments
+};
