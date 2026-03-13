@@ -181,6 +181,7 @@ antlrcpp::Any CodeGenVisitor::visitExpr_multdiv(ifccParser::Expr_multdivContext 
 }
 
 antlrcpp::Any CodeGenVisitor::visitExpr_moinsunaire(ifccParser::Expr_moinsunaireContext *ctx) {
+    // Je modifie moinsunaire
     visit(ctx->rhs());        // calcule l'opérande dans %eax
     std::string op = ctx->children[0]->getText();
     if (op =="-"){
