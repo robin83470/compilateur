@@ -13,12 +13,29 @@ Cela génère l'exécutable `ifcc` dans le dossier `compiler`.
 
 ## Utilisation du compilateur
 
-Le compilateur prend en entrée un fichier source C et génère du code assembleur x86-64 sur la sortie standard.
+Le compilateur prend en entrée un fichier source C et génère du code assembleur sur la sortie standard.
+
+### Cibles supportées
+
+- `x86_64` : Intel Mac
+- `aarch64` : Apple Silicon (M series)
+
+Par défaut, la cible est `x86_64`.
 
 ### Syntaxe
 
 ```bash
-./ifcc chemin/vers/fichier.c > output.s
+./ifcc [--target <x86_64|aarch64>] chemin/vers/fichier.c > output.s
+```
+
+### Exemples de génération
+
+```bash
+# Intel Mac
+./ifcc --target x86_64 exemple.c > exemple-x86.s
+
+# Apple Silicon Mac (M1/M2/M3/...)
+./ifcc --target aarch64 exemple.c > exemple-arm64.s
 ```
 
 ### Exemple
@@ -33,7 +50,7 @@ int main() {
 ```
 
 ```bash
-./ifcc exemple.c > exemple.s
+./ifcc --target x86_64 exemple.c > exemple.s
 gcc exemple.s -o exemple
 ./exemple
 echo $?

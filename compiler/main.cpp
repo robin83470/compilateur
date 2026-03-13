@@ -2,6 +2,7 @@
 #include <fstream>
 #include <sstream>
 #include <cstdlib>
+#include <memory>
 
 #include "antlr4-runtime.h"
 #include "generated/ifccLexer.h"
@@ -15,24 +16,94 @@
 using namespace antlr4;
 using namespace std;
 
+namespace {
+enum class TargetArch {
+    X86_64,
+    AARCH64
+};
+
+void printUsage(const char* programName) {
+    cerr << "usage: " << programName << " [--target <x86_64|aarch64>] path/to/file.c" << endl;
+}
+
+bool parseTarget(const string& value, TargetArch& target) {
+    if (value == "x86_64") {
+        target = TargetArch::X86_64;
+        return true;
+    }
+    if (value == "aarch64" || value == "arm64") {
+        target = TargetArch::AARCH64;
+        return true;
+    }
+    return false;
+}
+}
+
 int main(int argn, const char **argv)
 {
-    stringstream in;
-    if (argn == 2)
-    {
-        ifstream lecture(argv[1]);
-        if (!lecture.good())
-        {
-            cerr << "error: cannot read file: " << argv[1] << endl;
-            exit(1);
+    TargetArch target = TargetArch::X86_64;
+    string inputPath;
+
+    for (int i = 1; i < argn; ++i) {
+        string arg = argv[i];
+
+        if (arg == "--help" || arg == "-h") {
+            printUsage(argv[0]);
+            return 0;
         }
-        in << lecture.rdbuf();
+
+        if (arg == "--target") {
+            if (i + 1 >= argn) {
+                cerr << "error: missing value for --target" << endl;
+                printUsage(argv[0]);
+                return 1;
+            }
+
+            if (!parseTarget(argv[++i], target)) {
+                cerr << "error: unsupported target '" << argv[i] << "' (expected x86_64 or aarch64)" << endl;
+                printUsage(argv[0]);
+                return 1;
+            }
+            continue;
+        }
+
+        if (arg.rfind("--target=", 0) == 0) {
+            string value = arg.substr(9);
+            if (!parseTarget(value, target)) {
+                cerr << "error: unsupported target '" << value << "' (expected x86_64 or aarch64)" << endl;
+                printUsage(argv[0]);
+                return 1;
+            }
+            continue;
+        }
+
+        if (!arg.empty() && arg[0] == '-') {
+            cerr << "error: unknown option '" << arg << "'" << endl;
+            printUsage(argv[0]);
+            return 1;
+        }
+
+        if (!inputPath.empty()) {
+            cerr << "error: multiple input files are not supported" << endl;
+            printUsage(argv[0]);
+            return 1;
+        }
+        inputPath = arg;
     }
-    else
+
+    if (inputPath.empty()) {
+        printUsage(argv[0]);
+        return 1;
+    }
+
+    stringstream in;
+    ifstream lecture(inputPath);
+    if (!lecture.good())
     {
-        cerr << "usage: ifcc path/to/file.c" << endl;
+        cerr << "error: cannot read file: " << inputPath << endl;
         exit(1);
     }
+    in << lecture.rdbuf();
 
     ANTLRInputStream input(in.str());
 
@@ -60,8 +131,20 @@ int main(int argn, const char **argv)
     IRVisitor irVisitor(&symbolTableVisitor.symbolTable);
     IRControlFlowGraph* cfg = irVisitor.buildIr(tree);
 
-    X86BackEnd backend(cfg);
-    backend.generateCode(cout);
+    if (target == TargetArch::AARCH64) {
+        cerr << "error: target aarch64 selected, but ARM code generation is not implemented yet (phase 2)." << endl;
+        delete cfg;
+        return 1;
+    }
+
+    unique_ptr<BackEnd> backend;
+    if (target == TargetArch::X86_64) {
+        backend = make_unique<X86BackEnd>(cfg);
+    } else {
+        backend = make_unique<ARMBackEnd>(cfg);
+    }
+
+    backend->generateCode(cout);
 
     delete cfg;
 
