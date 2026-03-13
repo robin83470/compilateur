@@ -198,6 +198,120 @@ antlrcpp::Any CodeGenVisitor::visitExpr_parenthese(ifccParser::Expr_parentheseCo
     return visit(ctx->rhs());
 }
 
+antlrcpp::Any CodeGenVisitor::visitExpr_comparison(ifccParser::Expr_comparisonContext *ctx) {
+    visit(ctx->rhs(0));
+    std::cout << "    pushq %rax\n";
+    visit(ctx->rhs(1));
+    std::cout << "    popq %rcx\n";
+    std::cout << "    cmpl %eax, %ecx\n";
+
+    std::string op = ctx->children[1]->getText();
+    if (op == "<")
+        std::cout << "    setl %al\n";
+    else if (op == ">")
+        std::cout << "    setg %al\n";
+    else if (op == "<=")
+        std::cout << "    setle %al\n";
+    else if (op == ">=")
+        std::cout << "    setge %al\n";
+
+    std::cout << "    movzbl %al, %eax\n";
+    return 0;
+}
+//yo
+antlrcpp::Any CodeGenVisitor::visitExpr_equality(ifccParser::Expr_equalityContext *ctx) {
+    visit(ctx->rhs(0));
+    std::cout << "    pushq %rax\n";
+    visit(ctx->rhs(1));
+    std::cout << "    popq %rcx\n";
+    std::cout << "    cmpl %eax, %ecx\n";
+
+    std::string op = ctx->children[1]->getText();
+    if (op == "==")
+        std::cout << "    sete %al\n";
+    else if (op == "!=")
+        std::cout << "    setne %al\n";
+
+    std::cout << "    movzbl %al, %eax\n";
+    return 0;
+}
+
+antlrcpp::Any CodeGenVisitor::visitExpr_comparison(ifccParser::Expr_comparisonContext *ctx) {
+    visit(ctx->rhs(0));
+    std::cout << "    pushq %rax\n";
+    visit(ctx->rhs(1));
+    std::cout << "    popq %rcx\n";
+    std::cout << "    cmpl %eax, %ecx\n";
+
+    std::string op = ctx->children[1]->getText();
+    if (op == "<")
+        std::cout << "    setl %al\n";
+    else if (op == ">")
+        std::cout << "    setg %al\n";
+    else if (op == "<=")
+        std::cout << "    setle %al\n";
+    else if (op == ">=")
+        std::cout << "    setge %al\n";
+
+    std::cout << "    movzbl %al, %eax\n";
+    return 0;
+}
+
+antlrcpp::Any CodeGenVisitor::visitExpr_equality(ifccParser::Expr_equalityContext *ctx) {
+    visit(ctx->rhs(0));
+    std::cout << "    pushq %rax\n";
+    visit(ctx->rhs(1));
+    std::cout << "    popq %rcx\n";
+    std::cout << "    cmpl %eax, %ecx\n";
+
+    std::string op = ctx->children[1]->getText();
+    if (op == "==")
+        std::cout << "    sete %al\n";
+    else if (op == "!=")
+        std::cout << "    setne %al\n";
+
+    std::cout << "    movzbl %al, %eax\n";
+    return 0;
+}
+
+antlrcpp::Any CodeGenVisitor::visitExpr_comparison(ifccParser::Expr_comparisonContext *ctx) {
+    visit(ctx->rhs(0));
+    std::cout << "    pushq %rax\n";
+    visit(ctx->rhs(1));
+    std::cout << "    popq %rcx\n";
+    std::cout << "    cmpl %eax, %ecx\n";
+
+    std::string op = ctx->children[1]->getText();
+    if (op == "<")
+        std::cout << "    setl %al\n";
+    else if (op == ">")
+        std::cout << "    setg %al\n";
+    else if (op == "<=")
+        std::cout << "    setle %al\n";
+    else if (op == ">=")
+        std::cout << "    setge %al\n";
+
+    std::cout << "    movzbl %al, %eax\n";
+    return 0;
+}
+
+antlrcpp::Any CodeGenVisitor::visitExpr_equality(ifccParser::Expr_equalityContext *ctx) {
+    visit(ctx->rhs(0));
+    std::cout << "    pushq %rax\n";
+    visit(ctx->rhs(1));
+    std::cout << "    popq %rcx\n";
+    std::cout << "    cmpl %eax, %ecx\n";
+
+    std::string op = ctx->children[1]->getText();
+    if (op == "==")
+        std::cout << "    sete %al\n";
+    else if (op == "!=")
+        std::cout << "    setne %al\n";
+
+    std::cout << "    movzbl %al, %eax\n";
+    return 0;
+}
+
 
 
 antlrcpp::Any CodeGenVisitor::visitExpr_and(ifccParser::Expr_andContext *ctx) {

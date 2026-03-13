@@ -26,7 +26,8 @@ class SymbolTableVisitor : public ifccBaseVisitor {
         virtual antlrcpp::Any visitExpr_multdiv(ifccParser::Expr_multdivContext *ctx) override;
         virtual antlrcpp::Any visitExpr_parenthese(ifccParser::Expr_parentheseContext *ctx) override;
         virtual antlrcpp::Any visitExpr_const(ifccParser::Expr_constContext *ctx) override;
-
+        virtual antlrcpp::Any visitExpr_comparison(ifccParser::Expr_comparisonContext *ctx) override;
+        virtual antlrcpp::Any visitExpr_equality(ifccParser::Expr_equalityContext *ctx) override;
     private:
         void checkVariableUsed(const std::string& varName);
         void checkUnusedVariables();
