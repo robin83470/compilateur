@@ -11,6 +11,12 @@ IRControlFlowGraph* IRVisitor::buildIr(antlr4::tree::ParseTree* tree) {
     // Réserver le temporaire pour la valeur de retour
     symbolTable->addSymbol("!retval");
 
+    // Créer le bloc épilogue (il sera le dernier à être émis)
+    epilogueBloc = currentCFG->addBasicBloc(".epilogue");
+
+    // Revenir à .entry pour y mettre le code
+    currentCFG->setCurrentBasicBloc(currentCFG->getBlocs()[0]);
+
     visit(tree);
 
     return currentCFG;
@@ -27,6 +33,15 @@ antlrcpp::Any IRVisitor::visitReturn_stmt(ifccParser::Return_stmtContext* ctx) {
     std::string tmp = std::any_cast<std::string>(visit(ctx->rhs()));
     auto* bloc = currentCFG->getCurrentBasicBloc();
     bloc->addInstruction(new IRInstrCopy(bloc, "!retval", tmp));
+
+    // Saut inconditionnel vers l'épilogue
+    bloc->setExitTrue(epilogueBloc);
+
+    // Créer un nouveau bloc pour le code mort après le return
+    static int afterReturnCount = 0;
+    auto* deadBloc = currentCFG->addBasicBloc(".after_return" + std::to_string(afterReturnCount++));
+    currentCFG->setCurrentBasicBloc(deadBloc);
+
     return 0;
 }
 
