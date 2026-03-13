@@ -276,3 +276,14 @@ private:
     std::string funcName;  // Nom de la fonction à appeler
     std::vector<std::string> args; // Liste des variables passées en arguments
 };
+
+class IRInstrGetParam : public IRInstruction {
+public:
+    IRInstrGetParam(IRBasicBloc* parentBloc, const std::string& dest, int paramIndex);
+    void printDebug(std::ostream& out) const override;
+    void genX86(std::ostream& out) const override;
+    void genARM(std::ostream& out) const override;
+private:
+    std::string dest;
+    int paramIndex; // index des paramètres
+};

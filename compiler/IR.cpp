@@ -354,3 +354,57 @@ void IRInstrNeg::genX86(std::ostream& out) const {
 void IRInstrNeg::genARM(std::ostream& out) const {
         // TODO: implémenter la logique
 }
+
+// ═══════════════════════════════════════════════════════════════════
+//  IRInstrGetParam
+// ═══════════════════════════════════════════════════════════════════
+
+IRInstrGetParam::IRInstrGetParam(IRBasicBloc* parentBloc, const std::string& dest, int paramIndex)
+    : IRInstruction(parentBloc), dest(dest), paramIndex(paramIndex) {}
+
+void IRInstrGetParam::printDebug(std::ostream& out) const {
+    out << "    getParam " << dest << " index " << paramIndex << "\n";
+}
+
+void IRInstrGetParam::genX86(std::ostream& out) const {
+    // Registres 32 bits (pour int)
+    static const std::vector<std::string> reg32 = {"%edi", "%esi", "%edx", "%ecx", "%r8d", "%r9d"};
+    // Registres 64 bits (pour pointeurs ou long)
+    static const std::vector<std::string> reg64 = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
+
+    if (paramIndex < 6) {
+        int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+        
+        int size = parentBloc->getCFG()->getSymbolTable()->getTotalSize();
+
+
+        if (size == 8) {
+            out << "    movq " << reg64[paramIndex] << ", " << offsetDest << "(%rbp)\n";
+        } else {
+            out << "    movl " << reg32[paramIndex] << ", " << offsetDest << "(%rbp)\n";
+        }
+    } else {
+        out << "    # Error: Parameter index " << paramIndex << " > 6 not supported\n";
+    }
+}
+
+//
+// IR Return
+//
+IRInstrRet::IRInstrRet(IRBasicBloc* parentBloc, const std::string& src)
+    : IRInstruction(parentBloc), src(src) {}
+
+void IRInstrRet::printDebug(std::ostream& out) const {
+    out << "    ret " << src << "\n";
+}
+
+void IRInstrRet::genX86(std::ostream& out) const {
+    int offset = parentBloc->getCFG()->getSymbolTable()->getOffset(src);
+
+    out << "    movl " << offset << "(%rbp), %eax" << "\n";
+
+    std::string funcName = parentBloc->getCFG()->getBlocs()[0]->getLabel();
+    
+    out << "    jmp ." << funcName << "_exit" << "\n";
+}
+

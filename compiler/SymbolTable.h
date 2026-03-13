@@ -9,6 +9,7 @@ struct SymbolInfo {
     bool declared;
     bool used;
     std::string type; // Pour l'instant int uniquement
+    std::string name;
     int size;
 };
 
