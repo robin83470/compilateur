@@ -57,6 +57,16 @@ echo $?
 # Devrait afficher 42
 ```
 
+### Statut ARM (phase 2)
+
+Le backend ARM en phase 2 inclut :
+
+- Prologue/epilogue de fonction
+- Emission CFG (labels et branchements)
+- Instructions IR ARM `const` et `copy`
+
+Les autres instructions IR ARM (add/sub/mult/div/mod/comparaisons/logiques) ne sont pas encore portées.
+
 ## Exécution des tests
 
 Le script `ifcc-test.py` permet de lancer automatiquement les tests sur tous les programmes de test.
@@ -67,8 +77,18 @@ Le script `ifcc-test.py` permet de lancer automatiquement les tests sur tous les
 python3 ifcc-test.py testfiles/
 ```
 
+Vous pouvez préciser la cible testée :
+
+```bash
+# Sur machine Intel
+python3 ifcc-test.py --target x86_64 testfiles/
+
+# Sur machine Apple Silicon
+python3 ifcc-test.py --target aarch64 testfiles/
+```
+
 Ce script :
-- Compile chaque programme de test avec `ifcc` et avec `gcc`
+- Compile chaque programme de test avec `ifcc --target ...` et avec `gcc`
 - Assemble et lie les programmes
 - Exécute les programmes et compare les codes de retour
 - Génère des logs et des fichiers de sortie dans le dossier `ifcc-test-output`

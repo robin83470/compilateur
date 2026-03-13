@@ -1,5 +1,8 @@
 #include "IR.h"
 #include "CFG.h"
+#include "ArmCodegenUtils.h"
+
+#include <stdexcept>
 
 namespace {
 const char* cmpTypeToString(IRInstrCmp::CmpType cmpType) {
@@ -40,7 +43,9 @@ void IRInstrConst::genX86(std::ostream& out) const {
 }
 
 void IRInstrConst::genARM(std::ostream& out) const {
-    // TODO: implémenter la logique
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+    arm_codegen::emitLoadImm32(out, "w9", value);
+    arm_codegen::emitStoreWToOffset(out, offsetDest, "w9");
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -61,7 +66,10 @@ void IRInstrCopy::genX86(std::ostream& out) const {
 }
 
 void IRInstrCopy::genARM(std::ostream& out) const {
-    // TODO: implémenter la logique
+    int offsetSrc = parentBloc->getCFG()->getSymbolTable()->getOffset(src);
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+    arm_codegen::emitLoadWFromOffset(out, offsetSrc, "w9");
+    arm_codegen::emitStoreWToOffset(out, offsetDest, "w9");
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -87,7 +95,8 @@ void IRInstrAdd::genX86(std::ostream& out) const {
 }
 
 void IRInstrAdd::genARM(std::ostream& out) const {
-    // TODO: implémenter la logique
+    (void)out;
+    throw std::runtime_error("ARM backend: add not implemented yet");
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -114,7 +123,8 @@ void IRInstrSub::genX86(std::ostream& out) const {
 }
 
 void IRInstrSub::genARM(std::ostream& out) const {
-    // TODO: implémenter la logique
+    (void)out;
+    throw std::runtime_error("ARM backend: sub not implemented yet");
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -141,7 +151,8 @@ void IRInstrMult::genX86(std::ostream& out) const {
 }
 
 void IRInstrMult::genARM(std::ostream& out) const {
-    // TODO: implémenter la logique
+    (void)out;
+    throw std::runtime_error("ARM backend: mult not implemented yet");
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -169,7 +180,8 @@ void IRInstrDiv::genX86(std::ostream& out) const {
 }
 
 void IRInstrDiv::genARM(std::ostream& out) const {
-    // TODO: implémenter la logique
+    (void)out;
+    throw std::runtime_error("ARM backend: div not implemented yet");
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -196,7 +208,8 @@ void IRInstrMod::genX86(std::ostream& out) const {
 }
 
 void IRInstrMod::genARM(std::ostream& out) const {
-    // TODO: implémenter la logique
+    (void)out;
+    throw std::runtime_error("ARM backend: mod not implemented yet");
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -247,7 +260,8 @@ void IRInstrCmp::genX86(std::ostream& out) const {
 }
 
 void IRInstrCmp::genARM(std::ostream& out) const {
-    // TODO: implémenter la logique
+    (void)out;
+    throw std::runtime_error("ARM backend: cmp not implemented yet");
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -274,7 +288,8 @@ void IRInstrXor::genX86(std::ostream& out) const {
 }
 
 void IRInstrXor::genARM(std::ostream& out) const {
-    // TODO: implémenter la logique
+    (void)out;
+    throw std::runtime_error("ARM backend: xor not implemented yet");
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -301,7 +316,8 @@ void IRInstrOr::genX86(std::ostream& out) const {
 }
 
 void IRInstrOr::genARM(std::ostream& out) const {
-    // TODO: implémenter la logique
+    (void)out;
+    throw std::runtime_error("ARM backend: or not implemented yet");
 }
 
 
@@ -329,7 +345,8 @@ void IRInstrAnd::genX86(std::ostream& out) const {
 }
 
 void IRInstrAnd::genARM(std::ostream& out) const {
-    // TODO: implémenter la logique
+    (void)out;
+    throw std::runtime_error("ARM backend: and not implemented yet");
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -352,5 +369,6 @@ void IRInstrNeg::genX86(std::ostream& out) const {
 }
 
 void IRInstrNeg::genARM(std::ostream& out) const {
-        // TODO: implémenter la logique
+    (void)out;
+    throw std::runtime_error("ARM backend: neg not implemented yet");
 }

@@ -1,4 +1,5 @@
 #include "CFG.h"
+#include "ArmCodegenUtils.h"
 
 // ═══════════════════════════════════════════════════════════════════
 //  IRBasicBloc
@@ -40,7 +41,21 @@ void IRBasicBloc::genX86(std::ostream& out) const {
 }
 
 void IRBasicBloc::genARM(std::ostream& out) const {
-    // TODO: implémenter la logique
+    out << label << ":\n";
+
+    for (const auto* instr : instructions) {
+        instr->genARM(out);
+    }
+
+    if (exitFalse != nullptr) {
+        int offsetTest = cfg->getSymbolTable()->getOffset(testVarName);
+        arm_codegen::emitLoadWFromOffset(out, offsetTest, "w9");
+        out << "    cmp w9, #0\n";
+        out << "    beq " << exitFalse->getLabel() << "\n";
+        out << "    b " << exitTrue->getLabel() << "\n";
+    } else if (exitTrue != nullptr) {
+        out << "    b " << exitTrue->getLabel() << "\n";
+    }
 }
 
 void IRBasicBloc::printDebug(std::ostream& out) const {
@@ -95,7 +110,6 @@ void IRControlFlowGraph::genX86(std::ostream& out) const {
 }
 
 void IRControlFlowGraph::genARM(std::ostream& out) const {
-    // TODO: implémenter la logique
     for (const auto* bloc : blocs) {
         bloc->genARM(out);
     }
