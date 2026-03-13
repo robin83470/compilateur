@@ -6,7 +6,7 @@
 #include "SymbolTable.h"
 #include "CFG.h"
 
-//  IRVisitor : visiteur ANTLR qui construit l'IR 
+//  IRVisitor : visiteur ANTLR qui construit l'IR
 //  1. Le main crée un IRVisitor
 //  2. On appelle buildIr(tree) qui retourne un ControlFlowGraph (CFG) prêt
 //  3. On passe le CFG à un BackEnd pour générer l'assembleur
@@ -35,6 +35,7 @@ public:
     virtual antlrcpp::Any visitExpr_xor(ifccParser::Expr_xorContext* ctx) override;
     virtual antlrcpp::Any visitIf_elsifelse(ifccParser::If_elsifelseContext *ctx) override;
     virtual antlrcpp::Any visitWhile_stmt(ifccParser::While_stmtContext* ctx) override;
+    virtual antlrcpp::Any visitExpr_getchar(ifccParser::Expr_getcharContext* ctx) override;
 
 private:
     IRBasicBloc* epilogueBloc = nullptr;  //pointeur vers le bloc épilogue, pour y ajouter les instructions de retour

@@ -247,3 +247,15 @@ public:
     std::string dest;
     std::string src;
 };
+// IRInstrGetchar : dest = getchar()
+// Exemple IR : getchar dest
+class IRInstrGetchar : public IRInstruction {
+public:    IRInstrGetchar(IRBasicBloc* parentBloc, const std::string& dest);
+
+    void printDebug(std::ostream& out) const override;
+    void genX86(std::ostream& out) const override;
+    void genARM(std::ostream& out) const override;
+
+    private:
+    std::string dest;
+};

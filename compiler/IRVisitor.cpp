@@ -308,3 +308,9 @@ antlrcpp::Any IRVisitor::visitIf_elsifelse(ifccParser::If_elsifelseContext *ctx)
     currentCFG->setCurrentBasicBloc(exitBloc);
     return 0;
 }
+antlrcpp::Any IRVisitor::visitExpr_getchar(ifccParser::Expr_getcharContext* ctx) {
+    std::string tmp = currentCFG->newTemp();
+    auto* bloc = currentCFG->getCurrentBasicBloc();
+    bloc->addInstruction(new IRInstrGetchar(bloc, tmp));
+    return tmp;
+}

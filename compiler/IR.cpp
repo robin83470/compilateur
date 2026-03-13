@@ -440,3 +440,23 @@ void IRInstrNeg::genARM(std::ostream& out) const {
     out << "    neg w10, w9\n";
     arm_codegen::emitStoreWToOffset(out, offsetDest, "w10");
 }
+// ═══════════════════════════════════════════════════════════════════
+// IRInstrGetchar
+// ═══════════════════════════════════════════════════════════════════
+
+IRInstrGetchar::IRInstrGetchar(IRBasicBloc* parentBloc, const std::string& dest)
+    : IRInstruction(parentBloc), dest(dest) {}
+
+void IRInstrGetchar::printDebug(std::ostream& out) const {
+    out << " getchar " << dest << "\n";
+}
+
+void IRInstrGetchar::genX86(std::ostream& out) const {
+    out << "    callq _getchar\n"; // appel à getchar
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+    out << "    movl %eax, " << offsetDest << "(%rbp)\n"; // stocker la valeur de retour
+}
+
+void IRInstrGetchar::genARM(std::ostream& out) const {
+    // TODO: implémenter la logique
+}

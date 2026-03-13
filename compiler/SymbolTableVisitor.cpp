@@ -1,4 +1,5 @@
 #include "SymbolTableVisitor.h"
+#include <cstdlib>
 #include <iostream>
 
 antlrcpp::Any SymbolTableVisitor::visitProg(ifccParser::ProgContext *ctx) {
@@ -102,6 +103,9 @@ antlrcpp::Any SymbolTableVisitor::visitExpr_or(ifccParser::Expr_orContext *ctx) 
     return 0;
 }
 
+antlrcpp::Any SymbolTableVisitor::visitExpr_getchar(ifccParser::Expr_getcharContext *ctx) {
+    return 0;
+}
 
 void SymbolTableVisitor::checkVariableUsed(const std::string& varName) {
     // getSymbol() sort en erreur si la variable n'existe pas
