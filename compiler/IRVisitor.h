@@ -24,6 +24,7 @@ public:
     virtual antlrcpp::Any visitAssign_stmt(ifccParser::Assign_stmtContext* ctx) override;
 
     virtual antlrcpp::Any visitExpr_const(ifccParser::Expr_constContext* ctx) override;
+    virtual antlrcpp::Any visitExpr_char(ifccParser::Expr_charContext* ctx) override;
     virtual antlrcpp::Any visitExpr_id(ifccParser::Expr_idContext* ctx) override;
     virtual antlrcpp::Any visitExpr_plusmoins(ifccParser::Expr_plusmoinsContext* ctx) override;
     virtual antlrcpp::Any visitExpr_multdiv(ifccParser::Expr_multdivContext* ctx) override;

@@ -52,6 +52,10 @@ antlrcpp::Any SymbolTableVisitor::visitExpr_const(ifccParser::Expr_constContext 
     return 0;
 }
 
+antlrcpp::Any SymbolTableVisitor::visitExpr_char(ifccParser::Expr_charContext *ctx) {
+    return 0;
+}
+
 antlrcpp::Any SymbolTableVisitor::visitExpr_parenthese(ifccParser::Expr_parentheseContext *ctx) {
     return visit(ctx->rhs());
 }

@@ -83,6 +83,37 @@ antlrcpp::Any IRVisitor::visitExpr_const(ifccParser::Expr_constContext* ctx) {
     return tmp;
 }
 
+antlrcpp::Any IRVisitor::visitExpr_char(ifccParser::Expr_charContext* ctx) {
+    std::string text = ctx->CHARCONST()->getText();
+    int val = 0;
+    if (text[1] == '\\') {
+        switch (text[2]) {
+            case 'n':
+                val = '\n';
+                break;
+            case 't':
+                val = '\t';
+                break;
+            case '\\':
+                val = '\\';
+                break;
+            case '\'':
+                val = '\'';
+                break;
+            default:
+                val = text[2];
+                break;
+        }
+    } else {
+        val = text[1];
+    }
+
+    std::string tmp = currentCFG->newTemp();
+    auto* bloc = currentCFG->getCurrentBasicBloc();
+    bloc->addInstruction(new IRInstrConst(bloc, tmp, val));
+    return tmp;
+}
+
 antlrcpp::Any IRVisitor::visitExpr_id(ifccParser::Expr_idContext* ctx) {
     return ctx->ID()->getText();
 }
