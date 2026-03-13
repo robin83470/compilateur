@@ -4,14 +4,15 @@ axiom : prog EOF ;
 
 prog : 'int' 'main' '(' ')' '{' stmt* '}' ;
 
-stmt : return_stmt | declaration_stmt | assign_stmt ;
+stmt : return_stmt | declaration_stmt | assign_stmt | while_stmt ;
 
 return_stmt : RETURN rhs ';' ;
 
 declarator : ID (EQUAL rhs)? ;
 declaration_stmt : 'int' declarator (',' declarator)* ';' ;
 assign_stmt : ID EQUAL rhs ';' ;
-
+while_stmt : WHILE '(' rhs ')' '{' stmt* '}' ;
+WHILE : 'while' ; 
 
 rhs : 
     ('+'|'-'|'!') rhs                      # Expr_moinsunaire
