@@ -19,14 +19,14 @@ Le compilateur prend en entrée un fichier source C et génère du code assemble
 ### Cibles supportées
 
 - `x86_64` : Intel 64 bits
-- `aarch64` : Apple Silicon (M series)
+- `arm64` : Apple Silicon (M series)
 
 Par défaut, la cible est `x86_64`.
 
 ### Syntaxe
 
 ```bash
-./ifcc [--target <x86_64|aarch64>] chemin/vers/fichier.c > output.s
+./ifcc [--target <x86_64|arm64>] chemin/vers/fichier.c > output.s
 ```
 
 ### Exemples de génération
@@ -36,7 +36,7 @@ Par défaut, la cible est `x86_64`.
 ./ifcc --target x86_64 exemple.c > exemple-x86.s
 
 # Apple Silicon Mac (M1/M2/M3/...)
-./ifcc --target aarch64 exemple.c > exemple-arm64.s
+./ifcc --target arm64 exemple.c > exemple-arm64.s
 ```
 
 ### Exemple
@@ -68,6 +68,8 @@ Le script `ifcc-test.py` permet de lancer automatiquement les tests sur tous les
 python3 ifcc-test.py testfiles/
 ```
 
+Par défaut, si `--target` n'est pas fourni, la suite de tests utilise `x86_64`.
+
 Vous pouvez préciser la cible testée :
 
 ```bash
@@ -75,7 +77,7 @@ Vous pouvez préciser la cible testée :
 python3 ifcc-test.py --target x86_64 testfiles/
 
 # Sur machine Apple Silicon
-python3 ifcc-test.py --target aarch64 testfiles/
+python3 ifcc-test.py --target arm64 testfiles/
 ```
 
 Ce script :
@@ -88,6 +90,7 @@ Ce script :
 
 - `testfiles/ValidPrograms/` : Programmes C valides
 - `testfiles/InvalidPrograms/` : Programmes C invalides (pour tester les erreurs)
+- `testfiles/NotImplementedYet/` : Réservé aux cas non implémentés (actuellement vide)
 
 
 ## Fonctionnalités supportées
@@ -95,44 +98,56 @@ Ce script :
 ### Types de base
 - `int` : Type entier
 
+### Structure du programme
+- Une fonction `int main() { ... }`
+
 ### Déclarations
 - Déclaration de variables : `int a;`
 - Déclaration avec initialisation : `int a = 5;`
 - Déclarations multiples : `int a, b = 3;`
+- Affectation : `a = expr;`
 
 ### Expressions arithmétiques
 - Constantes entières : `42`
 - Variables : `a`
-- Opérateurs binaires :
-  - Addition : `+`
-  - Soustraction : `-`
-  - Multiplication : `*`
-  - Division : `/`
-  - Modulo : `%`
-- Opérateur unaire : `-` (négation)
-- Parentheses : `(expr)`
+- Opérateurs unaires : `+`, `-`, `!`
+- Opérateurs binaires arithmétiques : `+`, `-`, `*`, `/`, `%`
+- Opérateurs de comparaison : `<`, `<=`, `>`, `>=`, `==`, `!=`
+- Opérateurs binaires bit à bit : `&`, `|`, `^`
+- Parenthèses : `(expr)`
 - Priorités des opérateurs (selon la norme C) :
+  - `!` et les unaires avant les binaires
   - `*`, `/`, `%` avant `+`, `-`
+  - comparaisons et égalités après arithmétique
+  - `&`, `^`, `|` ensuite
   - Associativité à gauche par défaut
 - Expressions imbriquées
 
 ### Instructions
-- Return : `return expr;`
+- `return expr;`
+- `if (...) { ... }`
+- `if (...) { ... } else if (...) { ... } else { ... }`
+- `while (...) { ... }`
+
+### Prétraitement et commentaires
+- Lignes de directives préprocesseur (`#...`) ignorées par le parser
+- Commentaires C bloc `/* ... */`
 
 ### Gestion des erreurs
+- Erreurs lexicales
 - Erreurs de syntaxe
 - Variables non déclarées
 - Variables déclarées plusieurs fois
-- Programmes invalides (texte brut, point-virgule manquant, accolade fermante manquante)
+- Avertissement pour variables déclarées mais non utilisées
 
 ### Limitations
-- Pas de types autres que `int`
-- Pas de fonctions autres que `main`
-- Pas de structures de contrôle (`if`, `while`, etc.)
-- Pas de tableaux
-- Pas de pointeurs
-- Pas d'expressions logiques ou de comparaisons
-- Pas de caractéres spéciaux dans les commentaires
+- Uniquement `int main()` sans paramètres
+- Pas de types autres que `int` (pas de `char`, `float`, etc.)
+- Pas d'appels de fonctions
+- Pas de tableaux, pointeurs, structures
+- Pas de `for`, `do ... while`, `switch`, `break`, `continue`
+- Pas d'opérateurs logiques court-circuit (`&&`, `||`)
+- Littéraux de caractère non pris en charge côté génération de code
 
 
 ## Dépendances

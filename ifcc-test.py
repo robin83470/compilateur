@@ -16,11 +16,9 @@ import sys
 import subprocess
 
 def normalize_target(value):
-    if value == 'arm64':
-        return 'aarch64'
-    if value in ['x86_64', 'aarch64']:
+    if value in ['x86_64', 'arm64']:
         return value
-    raise argparse.ArgumentTypeError("target must be one of: x86_64, aarch64, arm64")
+    raise argparse.ArgumentTypeError("target must be one of: x86_64, arm64")
 
 def run_command(string, logfile=None, toscreen=False):
     """ execute `string` as a shell command. Maybe write stdout+stderr to `logfile` and/or to the toscreen.
@@ -71,7 +69,7 @@ description = "Testing script for the ifcc compiler. operates in one of two mode
     +twf("- Single-file mode (with options -o,-c and/or -S): Compile and/or assemble and/or link a single program."),
 epilog="examples:\n\n"
     +twf("python3 ifcc-test.py testfiles")+'\n'
-    +twf("python3 ifcc-test.py --target aarch64 testfiles")+'\n'
+    +twf("python3 ifcc-test.py --target arm64 testfiles")+'\n'
     +twf("python3 ifcc-test.py path/to/some/dir/*.c path/to/some/other/dir")+'\n'
     +'\n'
     +twf("python3 ifcc-test.py -o ./myprog path/to/some/source.c")+'\n'
@@ -91,7 +89,7 @@ argparser.add_argument('-S',action = "store_true", help='single-file mode: compi
 argparser.add_argument('-c',action = "store_true", help='single-file mode: compile/assemble to machine code, but do not link')
 argparser.add_argument('-o','--output',metavar = 'OUTPUTNAME', help='single-file mode: write output to that file')
 argparser.add_argument('--target', type=normalize_target, default='x86_64',
-                       help='target architecture passed to ifcc (x86_64 or aarch64). Default: x86_64')
+                       help='target architecture passed to ifcc (x86_64 or arm64). Default: x86_64')
 
 args=argparser.parse_args()
 
