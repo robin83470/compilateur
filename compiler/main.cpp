@@ -8,7 +8,8 @@
 #include "generated/ifccParser.h"
 #include "generated/ifccBaseVisitor.h"
 
-#include "CodeGenVisitor.h"
+#include "IRVisitor.h"
+#include "BackEnd.h"
 #include "SymbolTableVisitor.h"
 
 using namespace antlr4;
@@ -55,9 +56,14 @@ int main(int argn, const char **argv)
     }
     SymbolTableVisitor symbolTableVisitor;
     symbolTableVisitor.visit(tree);
-    
-    CodeGenVisitor codeGen(symbolTableVisitor.symbolTable);
-    codeGen.visit(tree);
+
+    IRVisitor irVisitor(&symbolTableVisitor.symbolTable);
+    IRControlFlowGraph* cfg = irVisitor.buildIr(tree);
+
+    X86BackEnd backend(cfg);
+    backend.generateCode(cout);
+
+    delete cfg;
 
     return 0;
 }
