@@ -20,19 +20,24 @@ def normalize_target(value):
         return value
     raise argparse.ArgumentTypeError("target must be one of: x86_64, arm64")
 
-def run_command(string, logfile=None, toscreen=False):
+def run_command(string, logfile=None, toscreen=False, stdin_data=None):
     """ execute `string` as a shell command. Maybe write stdout+stderr to `logfile` and/or to the toscreen.
-        return the exit status""" 
+        return the exit status"""
 
     if args.debug:
         print("ifcc-test.py: "+string)
-    
+
     process=subprocess.Popen(string,shell=True,
                              stderr=subprocess.STDOUT,stdout=subprocess.PIPE,
+                             stdin=subprocess.PIPE if stdin_data is not None else None,
                              text=True,bufsize=0)
     if logfile:
         logfile=open(logfile,'w')
-    
+
+    if stdin_data is not None:
+        process.stdin.write(stdin_data)
+        process.stdin.close()
+
     while True:
         output = process.stdout.readline()
         if len(output) == 0: # only happens when 'process' has terminated
@@ -50,7 +55,7 @@ def dumpfile(name,quiet=False):
     if not quiet:
         print(data,end='')
     return data
-    
+
 ######################################################################################
 ## ARGPARSE step: make sense of our command-line arguments
 
@@ -61,7 +66,7 @@ import textwrap
 import shutil
 width = shutil.get_terminal_size().columns-2
 twf=lambda text: textwrap.fill(text,width,initial_indent=' '*4,subsequent_indent=' '*6)
-            
+
 argparser   = argparse.ArgumentParser(
 formatter_class=argparse.RawDescriptionHelpFormatter,
 description = "Testing script for the ifcc compiler. operates in one of two modes:\n\n"
@@ -131,7 +136,7 @@ if args.S or args.c or args.output:
         print("error: this mode only supports a single input file")
         exit(1)
     inputfilename=args.input[0]
-        
+
     if inputfilename[-2:] != ".c":
         print("error: incorrect filename suffix (should be '.c'): "+inputfilename)
         exit(1)
@@ -145,7 +150,7 @@ if args.S or args.c or args.output:
     if (args.S or args.c) and not args.output:
         print("error: option '-o filename' is required in this mode")
         exit(1)
-        
+
     if args.S: # produce assembly
         if args.output[-2:] != ".s":
             print("error: output file name must end with '.s'")
@@ -165,7 +170,7 @@ if args.S or args.c or args.output:
         if ifccstatus: # let's show error messages on screen
             exit(run_command(f'{ifcc_cmd} {inputfilename}',toscreen=True))
         exit(run_command(f'gcc -c -o {args.output} {asmname}',toscreen=True))
-        
+
     else: # produce an executable
         if args.output[-2:] in [".o",".c",".s"]:
             print("error: incorrect name for an executable: "+args.output)
@@ -247,9 +252,12 @@ for inputfilename in inputfilenames:
     subdirname=subdirname.replace('/','-')  # flatten path to single subdir
     if args.debug>=2:
         print("debug: subdir="+subdirname)
-        
+
     os.mkdir(pld_base_dir+'/ifcc-test-output/'+subdirname)
     shutil.copyfile(inputfilename,pld_base_dir+'/ifcc-test-output/'+subdirname+'/input.c')
+    stdin_filename=inputfilename[:-2]+'.stdin'
+    if os.path.isfile(stdin_filename):
+        shutil.copyfile(stdin_filename,pld_base_dir+'/ifcc-test-output/'+subdirname+'/input.stdin')
     jobs.append(subdirname)
 
 ## eliminate duplicate paths from the 'jobs' list
@@ -279,20 +287,21 @@ for jobname in jobs:
 
     print('TEST-CASE: '+jobname)
     os.chdir(jobname)
-    
+
     ## Reference compiler = GCC
     gccstatus=run_command("gcc -S -o asm-gcc.s input.c", "gcc-compile.txt")
     if gccstatus == 0:
         # test-case is a valid program. we should run it
         gccstatus=run_command("gcc -o exe-gcc asm-gcc.s", "gcc-link.txt")
     if gccstatus == 0: # then both compile and link stage went well
-        exegccstatus=run_command("./exe-gcc", "gcc-execute.txt")
+        stdin_data=open("input.stdin").read() if os.path.exists("input.stdin") else None
+        exegccstatus=run_command("./exe-gcc", "gcc-execute.txt", stdin_data=stdin_data)
         if args.verbose >=2:
             dumpfile("gcc-execute.txt")
-            
+
     ## IFCC compiler
     ifccstatus=run_command(f'{ifcc_cmd} input.c > asm-ifcc.s', 'ifcc-compile.txt')
-    
+
     if gccstatus != 0 and ifccstatus != 0:
         ## ifcc correctly rejects invalid program -> test-case ok
         print("TEST OK")
@@ -323,8 +332,9 @@ for jobname in jobs:
 
     ## both compilers  did produce an  executable, so now we  run both
     ## these executables and compare the results.
-        
-    run_command("./exe-ifcc", "ifcc-execute.txt")
+
+    stdin_data=open("input.stdin").read() if os.path.exists("input.stdin") else None
+    run_command("./exe-ifcc", "ifcc-execute.txt", stdin_data=stdin_data)
     if open("gcc-execute.txt").read() != open("ifcc-execute.txt").read() :
         print("TEST FAIL (different results at execution)")
         all_ok=False
