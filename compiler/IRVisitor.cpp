@@ -196,3 +196,34 @@ antlrcpp::Any IRVisitor::visitExpr_xor(ifccParser::Expr_xorContext* ctx) {
     bloc->addInstruction(new IRInstrXor(bloc, tmp, lhs, rhs));
     return tmp;
 }
+
+antlrcpp::Any IRVisitor::visitWhile_stmt(ifccParser::While_stmtContext* ctx) {
+
+    IRBasicBloc* entryBloc = currentCFG->getCurrentBasicBloc();
+
+    IRBasicBloc* condBloc = currentCFG->addBasicBloc("while_cond");
+    IRBasicBloc* bodyBloc = currentCFG->addBasicBloc("while_body");
+    IRBasicBloc* endBloc  = currentCFG->addBasicBloc("after_while");
+
+    entryBloc->setExitTrue(condBloc);
+
+    currentCFG->setCurrentBasicBloc(condBloc);
+
+    std::string condTmp = std::any_cast<std::string>(visit(ctx->rhs()));
+
+    condBloc->setTestVarName(condTmp);
+    condBloc->setExitTrue(bodyBloc);
+    condBloc->setExitFalse(endBloc);
+
+    currentCFG->setCurrentBasicBloc(bodyBloc);
+
+    for(auto stmt : ctx->stmt()){
+        visit(stmt);
+    }
+
+    bodyBloc->setExitTrue(condBloc);
+
+    currentCFG->setCurrentBasicBloc(endBloc);
+
+    return 0;
+}
