@@ -26,7 +26,7 @@ rhs :
     | CONST                            # Expr_const
     | CHARCONST                        # Expr_char
     | ID                               # Expr_id
-    ;
+;
 
 RETURN : 'return' ;
 CONST : [0-9]+ ;
