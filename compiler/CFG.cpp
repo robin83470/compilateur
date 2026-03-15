@@ -102,9 +102,10 @@ std::string IRControlFlowGraph::newTemp(const std::string& type) {
 }
 
 void IRControlFlowGraph::genX86(std::ostream& out) const {
-    // TODO: implémenter la logique
     // Parcourir les blocs et appeler genX86() sur chacun
+    // On exclut le bloc .epilogue car le BackEnd le gère
     for (const auto* bloc : blocs) {
+        if (bloc->getLabel() == ".epilogue") continue;
         bloc->genX86(out);
     }
 }

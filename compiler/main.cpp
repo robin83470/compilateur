@@ -20,11 +20,11 @@ using namespace std;
 namespace {
 enum class TargetArch {
     X86_64,
-    AARCH64
+    ARM64
 };
 
 void printUsage(const char* programName) {
-    cerr << "usage: " << programName << " [--target <x86_64|aarch64>] path/to/file.c" << endl;
+    cerr << "usage: " << programName << " [--target <x86_64|arm64>] path/to/file.c" << endl;
 }
 
 bool parseTarget(const string& value, TargetArch& target) {
@@ -32,8 +32,8 @@ bool parseTarget(const string& value, TargetArch& target) {
         target = TargetArch::X86_64;
         return true;
     }
-    if (value == "aarch64" || value == "arm64") {
-        target = TargetArch::AARCH64;
+    if (value == "arm64") {
+        target = TargetArch::ARM64;
         return true;
     }
     return false;
@@ -61,7 +61,7 @@ int main(int argn, const char **argv)
             }
 
             if (!parseTarget(argv[++i], target)) {
-                cerr << "error: unsupported target '" << argv[i] << "' (expected x86_64 or aarch64)" << endl;
+                cerr << "error: unsupported target '" << argv[i] << "' (expected x86_64 or arm64)" << endl;
                 printUsage(argv[0]);
                 return 1;
             }
@@ -71,7 +71,7 @@ int main(int argn, const char **argv)
         if (arg.rfind("--target=", 0) == 0) {
             string value = arg.substr(9);
             if (!parseTarget(value, target)) {
-                cerr << "error: unsupported target '" << value << "' (expected x86_64 or aarch64)" << endl;
+                cerr << "error: unsupported target '" << value << "' (expected x86_64 or arm64)" << endl;
                 printUsage(argv[0]);
                 return 1;
             }

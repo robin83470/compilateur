@@ -6,7 +6,7 @@
 
 class SymbolTableVisitor : public ifccBaseVisitor {
     public:
-        SymbolTable symbolTable; 
+        SymbolTable symbolTable;
 
         virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override;
         virtual antlrcpp::Any visitDeclaration_stmt(ifccParser::Declaration_stmtContext *ctx) override;
@@ -19,11 +19,14 @@ class SymbolTableVisitor : public ifccBaseVisitor {
         virtual antlrcpp::Any visitExpr_multdiv(ifccParser::Expr_multdivContext *ctx) override;
         virtual antlrcpp::Any visitExpr_parenthese(ifccParser::Expr_parentheseContext *ctx) override;
         virtual antlrcpp::Any visitExpr_const(ifccParser::Expr_constContext *ctx) override;
+        virtual antlrcpp::Any visitExpr_char(ifccParser::Expr_charContext *ctx) override;
         virtual antlrcpp::Any visitExpr_comparison(ifccParser::Expr_comparisonContext *ctx) override;
         virtual antlrcpp::Any visitExpr_equality(ifccParser::Expr_equalityContext *ctx) override;
         virtual antlrcpp::Any visitExpr_and(ifccParser::Expr_andContext *ctx) override;
         virtual antlrcpp::Any visitExpr_xor(ifccParser::Expr_xorContext *ctx) override;
         virtual antlrcpp::Any visitExpr_or(ifccParser::Expr_orContext *ctx) override;
+        virtual antlrcpp::Any visitExpr_getchar(ifccParser::Expr_getcharContext *ctx) override;
+        virtual antlrcpp::Any visitExpr_putchar(ifccParser::Expr_putcharContext *ctx) override;
     private:
         void checkVariableUsed(const std::string& varName);
 };

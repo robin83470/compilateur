@@ -1,5 +1,6 @@
 # PLD Compilateur
 Ce projet est un compilateur pour le langage C.
+
 ## Compilation du compilateur
 
 Pour compiler le compilateur `ifcc`, placez-vous dans le dossier `compiler` et exécutez la commande `make` :
@@ -17,25 +18,25 @@ Le compilateur prend en entrée un fichier source C et génère du code assemble
 
 ### Cibles supportées
 
-- `x86_64` : Intel Mac
-- `aarch64` : Apple Silicon (M series)
+- `x86_64` : Intel 64 bits
+- `arm64` : Apple Silicon (M series)
 
 Par défaut, la cible est `x86_64`.
 
 ### Syntaxe
 
 ```bash
-./ifcc [--target <x86_64|aarch64>] chemin/vers/fichier.c > output.s
+./ifcc [--target <x86_64|arm64>] chemin/vers/fichier.c > output.s
 ```
 
 ### Exemples de génération
 
 ```bash
-# Intel Mac
+# Intel
 ./ifcc --target x86_64 exemple.c > exemple-x86.s
 
 # Apple Silicon Mac (M1/M2/M3/...)
-./ifcc --target aarch64 exemple.c > exemple-arm64.s
+./ifcc --target arm64 exemple.c > exemple-arm64.s
 ```
 
 ### Exemple
@@ -57,16 +58,6 @@ echo $?
 # Devrait afficher 42
 ```
 
-### Statut ARM (phase 2)
-
-Le backend ARM en phase 2 inclut :
-
-- Prologue/epilogue de fonction
-- Emission CFG (labels et branchements)
-- Instructions IR ARM `const` et `copy`
-
-Les autres instructions IR ARM (add/sub/mult/div/mod/comparaisons/logiques) ne sont pas encore portées.
-
 ## Exécution des tests
 
 Le script `ifcc-test.py` permet de lancer automatiquement les tests sur tous les programmes de test.
@@ -77,6 +68,8 @@ Le script `ifcc-test.py` permet de lancer automatiquement les tests sur tous les
 python3 ifcc-test.py testfiles/
 ```
 
+Par défaut, si `--target` n'est pas fourni, la suite de tests utilise `x86_64`.
+
 Vous pouvez préciser la cible testée :
 
 ```bash
@@ -84,7 +77,7 @@ Vous pouvez préciser la cible testée :
 python3 ifcc-test.py --target x86_64 testfiles/
 
 # Sur machine Apple Silicon
-python3 ifcc-test.py --target aarch64 testfiles/
+python3 ifcc-test.py --target arm64 testfiles/
 ```
 
 Ce script :
@@ -92,56 +85,82 @@ Ce script :
 - Assemble et lie les programmes
 - Exécute les programmes et compare les codes de retour
 - Génère des logs et des fichiers de sortie dans le dossier `ifcc-test-output`
+- Supporte un fichier compagnon `nom_du_test.stdin` pour fournir une entrée standard afin de faire les tests avec des I/O, notamment ceux utilisant `getchar`
 
 ### Structure des tests
 
 - `testfiles/ValidPrograms/` : Programmes C valides
 - `testfiles/InvalidPrograms/` : Programmes C invalides (pour tester les erreurs)
+- `testfiles/NotImplementedYet/` : Réservé aux cas non implémentés (actuellement vide)
+
 
 ## Fonctionnalités supportées
 
-
 ### Types de base
 - `int` : Type entier
+
+### Structure du programme
+- Une fonction `int main() { ... }`
 
 ### Déclarations
 - Déclaration de variables : `int a;`
 - Déclaration avec initialisation : `int a = 5;`
 - Déclarations multiples : `int a, b = 3;`
+- Affectation : `a = expr;`
 
 ### Expressions arithmétiques
 - Constantes entières : `42`
+- Constantes caractère : `'a'`, `'\n'`, `'\t'`, `'\''`, `'\\'`
 - Variables : `a`
-- Opérateurs binaires :
-  - Addition : `+`
-  - Soustraction : `-`
-  - Multiplication : `*`
-  - Division : `/`
-  - Modulo : `%`
-- Opérateur unaire : `-` (négation)
-- Parentheses : `(expr)`
+- Opérateurs unaires : `+`, `-`, `!`
+- Opérateurs binaires arithmétiques : `+`, `-`, `*`, `/`, `%`
+- Opérateurs de comparaison : `<`, `<=`, `>`, `>=`, `==`, `!=`
+- Opérateurs binaires bit à bit : `&`, `|`, `^`
+- Parenthèses : `(expr)`
 - Priorités des opérateurs (selon la norme C) :
+  - `!` et les unaires avant les binaires
   - `*`, `/`, `%` avant `+`, `-`
+  - comparaisons et égalités après arithmétique
+  - `&`, `^`, `|` ensuite
   - Associativité à gauche par défaut
 - Expressions imbriquées
 
 ### Instructions
-- Return : `return expr;`
+- `return expr;`
+- `if (...) { ... }`
+- `if (...) { ... } else if (...) { ... } else { ... }`
+- `while (...) { ... }`
+
+### Entrées / sorties standard
+- `getchar()` : lecture d'un caractère depuis l'entrée standard, avec retour `int`
+- `putchar(expr)` : écriture d'un caractère sur la sortie standard, avec retour `int`
+- `putchar` accepte actuellement comme argument :
+  - une constante entière
+  - une constante caractère
+  - une variable
+  - `getchar()`
+
+### Prétraitement et commentaires
+- Lignes de directives préprocesseur (`#...`) ignorées par le parser
+- Commentaires C bloc `/* ... */`
 
 ### Gestion des erreurs
+- Erreurs lexicales
 - Erreurs de syntaxe
 - Variables non déclarées
 - Variables déclarées plusieurs fois
-- Programmes invalides (texte brut, point-virgule manquant, accolade fermante manquante)
+- Avertissement pour variables déclarées mais non utilisées
 
 ### Limitations
-- Pas de types autres que `int`
-- Pas de fonctions autres que `main`
-- Pas de structures de contrôle (`if`, `while`, etc.)
-- Pas de tableaux
-- Pas de pointeurs
-- Pas d'expressions logiques ou de comparaisons
-- Pas de caractéres spéciaux dans les commentaires
+- Uniquement `int main()` sans paramètres
+- Pas de types autres que `int` (pas de `char`, `float`, etc.)
+- Pas de définition de fonctions utilisateur
+- Pas d'appels de fonctions génériques
+- Seuls les builtins `getchar()` et `putchar(...)` sont pris en charge pour l'instant
+- Pas de tableaux, pointeurs, structures
+- Pas de `for`, `do ... while`, `switch`, `break`, `continue`
+- Pas d'opérateurs logiques court-circuit (`&&`, `||`)
+- `putchar` ne prend pas encore en charge une expression arithmétique générale comme argument
 
 
 ## Dépendances

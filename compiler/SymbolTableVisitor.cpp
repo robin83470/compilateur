@@ -1,4 +1,5 @@
 #include "SymbolTableVisitor.h"
+#include <cstdlib>
 #include <iostream>
 
 antlrcpp::Any SymbolTableVisitor::visitProg(ifccParser::ProgContext *ctx) {
@@ -48,6 +49,10 @@ antlrcpp::Any SymbolTableVisitor::visitExpr_id(ifccParser::Expr_idContext *ctx) 
 }
 
 antlrcpp::Any SymbolTableVisitor::visitExpr_const(ifccParser::Expr_constContext *ctx) {
+    return 0;
+}
+
+antlrcpp::Any SymbolTableVisitor::visitExpr_char(ifccParser::Expr_charContext *ctx) {
     return 0;
 }
 
@@ -102,6 +107,17 @@ antlrcpp::Any SymbolTableVisitor::visitExpr_or(ifccParser::Expr_orContext *ctx) 
     return 0;
 }
 
+antlrcpp::Any SymbolTableVisitor::visitExpr_getchar(ifccParser::Expr_getcharContext *ctx) {
+    return 0;
+}
+
+antlrcpp::Any SymbolTableVisitor::visitExpr_putchar(ifccParser::Expr_putcharContext *ctx) {
+    auto* ioArg = ctx->io_arg();
+    if (ioArg->ID()) {
+        checkVariableUsed(ioArg->ID()->getText());
+    }
+    return 0;
+}
 
 void SymbolTableVisitor::checkVariableUsed(const std::string& varName) {
     // getSymbol() sort en erreur si la variable n'existe pas

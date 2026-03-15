@@ -6,7 +6,7 @@
 #include "SymbolTable.h"
 #include "CFG.h"
 
-//  IRVisitor : visiteur ANTLR qui construit l'IR 
+//  IRVisitor : visiteur ANTLR qui construit l'IR
 //  1. Le main crée un IRVisitor
 //  2. On appelle buildIr(tree) qui retourne un ControlFlowGraph (CFG) prêt
 //  3. On passe le CFG à un BackEnd pour générer l'assembleur
@@ -24,6 +24,7 @@ public:
     virtual antlrcpp::Any visitAssign_stmt(ifccParser::Assign_stmtContext* ctx) override;
 
     virtual antlrcpp::Any visitExpr_const(ifccParser::Expr_constContext* ctx) override;
+    virtual antlrcpp::Any visitExpr_char(ifccParser::Expr_charContext* ctx) override;
     virtual antlrcpp::Any visitExpr_id(ifccParser::Expr_idContext* ctx) override;
     virtual antlrcpp::Any visitExpr_plusmoins(ifccParser::Expr_plusmoinsContext* ctx) override;
     virtual antlrcpp::Any visitExpr_multdiv(ifccParser::Expr_multdivContext* ctx) override;
@@ -33,9 +34,13 @@ public:
     virtual antlrcpp::Any visitExpr_and(ifccParser::Expr_andContext* ctx) override;
     virtual antlrcpp::Any visitExpr_or(ifccParser::Expr_orContext* ctx) override;
     virtual antlrcpp::Any visitExpr_xor(ifccParser::Expr_xorContext* ctx) override;
+    virtual antlrcpp::Any visitIf_elsifelse(ifccParser::If_elsifelseContext *ctx) override;
     virtual antlrcpp::Any visitWhile_stmt(ifccParser::While_stmtContext* ctx) override;
+    virtual antlrcpp::Any visitExpr_getchar(ifccParser::Expr_getcharContext* ctx) override;
+    virtual antlrcpp::Any visitExpr_putchar(ifccParser::Expr_putcharContext* ctx) override;
 
 private:
+    IRBasicBloc* epilogueBloc = nullptr;  //pointeur vers le bloc épilogue, pour y ajouter les instructions de retour
     IRControlFlowGraph* currentCFG = nullptr;
     SymbolTable* symbolTable;
 };

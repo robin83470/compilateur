@@ -11,6 +11,12 @@ IRControlFlowGraph* IRVisitor::buildIr(antlr4::tree::ParseTree* tree) {
     // Réserver le temporaire pour la valeur de retour
     symbolTable->addSymbol("!retval");
 
+    // Créer le bloc épilogue (il sera le dernier à être émis)
+    epilogueBloc = currentCFG->addBasicBloc(".epilogue");
+
+    // Revenir à .entry pour y mettre le code
+    currentCFG->setCurrentBasicBloc(currentCFG->getBlocs()[0]);
+
     visit(tree);
 
     return currentCFG;
@@ -27,6 +33,15 @@ antlrcpp::Any IRVisitor::visitReturn_stmt(ifccParser::Return_stmtContext* ctx) {
     std::string tmp = std::any_cast<std::string>(visit(ctx->rhs()));
     auto* bloc = currentCFG->getCurrentBasicBloc();
     bloc->addInstruction(new IRInstrCopy(bloc, "!retval", tmp));
+
+    // Saut inconditionnel vers l'épilogue
+    bloc->setExitTrue(epilogueBloc);
+
+    // Créer un nouveau bloc pour le code mort après le return
+    static int afterReturnCount = 0;
+    auto* deadBloc = currentCFG->addBasicBloc(".after_return" + std::to_string(afterReturnCount++));
+    currentCFG->setCurrentBasicBloc(deadBloc);
+
     return 0;
 }
 
@@ -68,6 +83,37 @@ antlrcpp::Any IRVisitor::visitExpr_const(ifccParser::Expr_constContext* ctx) {
     return tmp;
 }
 
+antlrcpp::Any IRVisitor::visitExpr_char(ifccParser::Expr_charContext* ctx) {
+    std::string text = ctx->CHARCONST()->getText();
+    int val = 0;
+    if (text[1] == '\\') {
+        switch (text[2]) {
+            case 'n':
+                val = '\n';
+                break;
+            case 't':
+                val = '\t';
+                break;
+            case '\\':
+                val = '\\';
+                break;
+            case '\'':
+                val = '\'';
+                break;
+            default:
+                val = text[2];
+                break;
+        }
+    } else {
+        val = text[1];
+    }
+
+    std::string tmp = currentCFG->newTemp();
+    auto* bloc = currentCFG->getCurrentBasicBloc();
+    bloc->addInstruction(new IRInstrConst(bloc, tmp, val));
+    return tmp;
+}
+
 antlrcpp::Any IRVisitor::visitExpr_id(ifccParser::Expr_idContext* ctx) {
     return ctx->ID()->getText();
 }
@@ -98,9 +144,6 @@ antlrcpp::Any IRVisitor::visitExpr_multdiv(ifccParser::Expr_multdivContext* ctx)
         auto* divisorNode = ctx->rhs(1);
         if (auto* cctx = dynamic_cast<ifccParser::Expr_constContext*>(divisorNode)) {
             int val = std::stoi(cctx->CONST()->getText());
-            if (val == 0) {
-                std::cerr << "warning: division by zero " << std::endl;
-            }
         }
     }
 
@@ -120,13 +163,25 @@ antlrcpp::Any IRVisitor::visitExpr_moinsunaire(ifccParser::Expr_moinsunaireConte
     if (ctx->children[0]->getText() == "+") {
         return operand;
     }
-
-    std::string zero = currentCFG->newTemp();
-    std::string tmp = currentCFG->newTemp();
-    auto* bloc = currentCFG->getCurrentBasicBloc();
-    bloc->addInstruction(new IRInstrConst(bloc, zero, 0));
-    bloc->addInstruction(new IRInstrSub(bloc, tmp, zero, operand));
-    return tmp;
+    else if (ctx->children[0]->getText() == "-") {
+        std::string zero = currentCFG->newTemp();
+        std::string tmp = currentCFG->newTemp();
+        auto* bloc = currentCFG->getCurrentBasicBloc();
+        bloc->addInstruction(new IRInstrConst(bloc, zero, 0));
+        bloc->addInstruction(new IRInstrSub(bloc, tmp, zero, operand));
+        return tmp;
+    }
+    else if (ctx->children[0]->getText() == "!") {
+        std::string zero = currentCFG->newTemp();
+        std::string tmp = currentCFG->newTemp();
+        auto* bloc = currentCFG->getCurrentBasicBloc();
+        bloc->addInstruction(new IRInstrConst(bloc, zero, 0));
+        bloc->addInstruction(new IRInstrCmp(bloc, tmp, operand, zero, IRInstrCmp::EQ));
+        return tmp;
+    }
+    else {
+        throw std::runtime_error("Unexpected unary operator: " + ctx->children[0]->getText());
+    }
 }
 
 antlrcpp::Any IRVisitor::visitExpr_parenthese(ifccParser::Expr_parentheseContext* ctx) {
@@ -214,4 +269,103 @@ antlrcpp::Any IRVisitor::visitWhile_stmt(ifccParser::While_stmtContext* ctx) {
     currentCFG->setCurrentBasicBloc(endBloc);
 
     return 0;
+}
+
+
+
+
+antlrcpp::Any IRVisitor::visitIf_elsifelse(ifccParser::If_elsifelseContext *ctx)
+{
+    IRBasicBloc* currentTestBloc = currentCFG->getCurrentBasicBloc();
+
+    size_t nConds = ctx->rhs().size();
+    size_t nBlocks = ctx->block().size();
+
+    // On prépare les blocs "then"
+    std::vector<IRBasicBloc*> thenBlocs;
+    for (size_t i = 0; i < nConds; i++) {
+        thenBlocs.push_back(currentCFG->addBasicBloc(".then_" + std::to_string(i)));
+    }
+
+    // On prépare les blocs de test suivants / else
+    std::vector<IRBasicBloc*> falseBlocs;
+    for (size_t i = 1; i < nConds; i++) {
+        falseBlocs.push_back(currentCFG->addBasicBloc(".test_" + std::to_string(i)));
+    }
+
+    IRBasicBloc* elseBloc = nullptr;
+    if (nBlocks > nConds) {
+        elseBloc = currentCFG->addBasicBloc(".else");
+    }
+
+
+    IRBasicBloc* exitBloc = currentCFG->addBasicBloc(".if_exit");
+
+    for (size_t i = 0; i < nConds; i++) {
+        currentCFG->setCurrentBasicBloc(currentTestBloc);
+
+        std::string testVarName = std::any_cast<std::string>(visit(ctx->rhs(i)));
+
+        IRBasicBloc* falseDest = nullptr;
+        if (i + 1 < nConds) {
+            falseDest = falseBlocs[i];
+        } else if (elseBloc != nullptr) {
+            falseDest = elseBloc;
+        } else {
+            falseDest = exitBloc;
+        }
+
+        currentTestBloc->setTestVarName(testVarName);
+        currentTestBloc->setExitTrue(thenBlocs[i]);
+        currentTestBloc->setExitFalse(falseDest);
+
+        // Corps du then / elsif
+        currentCFG->setCurrentBasicBloc(thenBlocs[i]);
+        visit(ctx->block(i));
+        currentCFG->getCurrentBasicBloc()->setExitTrue(exitBloc);
+
+        if (i + 1 < nConds) {
+            currentTestBloc = falseBlocs[i];
+        }
+    }
+
+    // else final éventuel
+    if (elseBloc != nullptr) {
+        currentCFG->setCurrentBasicBloc(elseBloc);
+        visit(ctx->block(nBlocks - 1));
+        currentCFG->getCurrentBasicBloc()->setExitTrue(exitBloc);
+    }
+
+    currentCFG->setCurrentBasicBloc(exitBloc);
+    return 0;
+}
+antlrcpp::Any IRVisitor::visitExpr_getchar(ifccParser::Expr_getcharContext* ctx) {
+    std::string tmp = currentCFG->newTemp();
+    auto* bloc = currentCFG->getCurrentBasicBloc();
+    bloc->addInstruction(new IRInstrGetchar(bloc, tmp));
+    return tmp;
+}
+
+antlrcpp::Any IRVisitor::visitExpr_putchar(ifccParser::Expr_putcharContext* ctx) {
+    std::string arg;
+    auto* bloc = currentCFG->getCurrentBasicBloc();
+    auto* ioArg = ctx->io_arg();
+    if (ioArg->CONST()) {
+        arg = currentCFG->newTemp();
+        bloc->addInstruction(new IRInstrConst(bloc, arg, std::stoi(ioArg->CONST()->getText())));
+    } else if (ioArg->CHARCONST()) {
+        std::string text = ioArg->CHARCONST()->getText();
+        int val = (text[1] == '\\') ? text[2] : text[1];
+        arg = currentCFG->newTemp();
+        bloc->addInstruction(new IRInstrConst(bloc, arg, val));
+    } else if (ioArg->ID()) {
+        arg = ioArg->ID()->getText();
+    } else {
+        arg = currentCFG->newTemp();
+        bloc->addInstruction(new IRInstrGetchar(bloc, arg));
+    }
+
+    std::string tmp = currentCFG->newTemp();
+    bloc->addInstruction(new IRInstrPutchar(bloc, tmp, arg));
+    return tmp;
 }
