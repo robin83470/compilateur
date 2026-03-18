@@ -10,6 +10,7 @@ struct SymbolInfo {
     bool used;
     std::string type; // Pour l'instant int uniquement
     int size;
+    int align;
 };
 
 class SymbolTable {
@@ -33,6 +34,10 @@ public:
     void checkUnusedVariables() const;
 
     const std::map<std::string, SymbolInfo>& getMap() const { return symbols; }
+    int getTypeSize(const std::string& type) const;
+    int getTypeAlign(const std::string& type) const;
+    const std::string& getType(const std::string& name) const;
+    bool isPointerType(const std::string& type) const;
 
 private:
     std::map<std::string, SymbolInfo> symbols;
