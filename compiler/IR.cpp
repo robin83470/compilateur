@@ -367,9 +367,8 @@ void IRInstrGetParam::printDebug(std::ostream& out) const {
 }
 
 void IRInstrGetParam::genX86(std::ostream& out) const {
-    // Registres 32 bits (pour int)
     static const std::vector<std::string> reg32 = {"%edi", "%esi", "%edx", "%ecx", "%r8d", "%r9d"};
-    // Registres 64 bits (pour pointeurs ou long)
+    // Registres 64 bits 
     static const std::vector<std::string> reg64 = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
 
     if (paramIndex < 6) {
@@ -385,6 +384,18 @@ void IRInstrGetParam::genX86(std::ostream& out) const {
         }
     } else {
         out << "    # Error: Parameter index " << paramIndex << " > 6 not supported\n";
+    }
+}
+
+void IRInstrGetParam::genARM(std::ostream& out) const {
+    // Registres pour ARM64
+    static const std::vector<std::string> armRegs = {"x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7"};
+
+    if (paramIndex < 8) {
+        int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+        out << "    str " << armRegs[paramIndex] << ", [x29, #" << offsetDest << "]\n";
+    } else {
+        out << "    # Error: Parameter index " << paramIndex << " > 8 not supported\n";
     }
 }
 
@@ -408,3 +419,60 @@ void IRInstrRet::genX86(std::ostream& out) const {
     out << "    jmp ." << funcName << "_exit" << "\n";
 }
 
+void IRInstrRet::genARM(std::ostream& out) const {
+    int offset = parentBloc->getCFG()->getSymbolTable()->getOffset(src);
+    out << "    ldr x0, [x29, #" << offset << "]\n";
+    
+    std::string funcName = parentBloc->getCFG()->getBlocs()[0]->getLabel();
+    out << "    b ." << funcName << "_exit\n";
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  IRInstrCall : dest = funcName(args...)
+// ═══════════════════════════════════════════════════════════════════
+
+IRInstrCall::IRInstrCall(IRBasicBloc* parentBloc, 
+                         const std::string& dest, 
+                         const std::string& funcName, 
+                         const std::vector<std::string>& args)
+    : IRInstruction(parentBloc), dest(dest), funcName(funcName), args(args) {}
+
+void IRInstrCall::printDebug(std::ostream& out) const {
+    out << "  call " << dest << " " << funcName << "(";
+    for (size_t i = 0; i < args.size(); i++) {
+        if (i > 0) out << ", ";
+        out << args[i];
+    }
+    out << ")\n";
+}
+
+void IRInstrCall::genX86(std::ostream& out) const {
+    // Registres 32 bits pour les arguments
+    static const std::vector<std::string> reg32 = {"%edi", "%esi", "%edx", "%ecx", "%r8d", "%r9d"};
+    static const std::vector<std::string> reg64 = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
+
+    for (size_t i = 0; i < args.size() && i < 6; i++) {
+        int offsetArg = parentBloc->getCFG()->getSymbolTable()->getOffset(args[i]);
+        out << "    movl " << offsetArg << "(%rbp), %eax\n";
+        out << "    movl %eax, " << reg32[i] << "\n";
+    }
+
+    out << "    call " << funcName << "\n";
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+    out << "    movl %eax, " << offsetDest << "(%rbp)\n";
+}
+
+void IRInstrCall::genARM(std::ostream& out) const {
+    // Registres pour ARM64
+    static const std::vector<std::string> armRegs = {"x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7"};
+
+    for (size_t i = 0; i < args.size() && i < 8; i++) {
+        int offsetArg = parentBloc->getCFG()->getSymbolTable()->getOffset(args[i]);
+        out << "    ldr " << armRegs[i] << ", [x29, #" << offsetArg << "]\n";
+    }
+
+    out << "    bl " << funcName << "\n";
+
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+    out << "    str x0, [x29, #" << offsetDest << "]\n";
+}

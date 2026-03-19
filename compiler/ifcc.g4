@@ -22,12 +22,14 @@ rhs :
     | rhs BAND rhs                     # Expr_and
     | rhs BOR rhs                      # Expr_or
     | rhs BXOR rhs                     # Expr_xor
+    | ID '(' rhsList? ')'              # Expr_funcCall
     | '(' rhs ')'                      # Expr_parenthese
     | CONST                            # Expr_const
     | CHARCONST                        # Expr_char
     | ID                               # Expr_id
 ;
 
+rhsList : rhs (',' rhs)* ;
 RETURN : 'return' ;
 CONST : [0-9]+ ;
 CHARCONST : '\'' ( '\\' . | ~('\\'|'\'') ) '\'' ;

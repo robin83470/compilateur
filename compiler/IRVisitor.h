@@ -33,6 +33,8 @@ public:
     virtual antlrcpp::Any visitExpr_and(ifccParser::Expr_andContext* ctx) override;
     virtual antlrcpp::Any visitExpr_or(ifccParser::Expr_orContext* ctx) override;
     virtual antlrcpp::Any visitExpr_xor(ifccParser::Expr_xorContext* ctx) override;
+    virtual antlrcpp::Any visitExpr_funcCall(ifccParser::Expr_funcCallContext* ctx) override;
+    virtual antlrcpp::Any visitRhsList(ifccParser::RhsListContext* ctx) override;
 
 private:
     IRControlFlowGraph* currentCFG = nullptr;
