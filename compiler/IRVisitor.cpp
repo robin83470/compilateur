@@ -85,8 +85,6 @@ antlrcpp::Any IRVisitor::visitReturn_stmt(ifccParser::Return_stmtContext* ctx) {
     bloc->setExitTrue(epilogueBloc);
 
     // Créer un nouveau bloc pour le code mort après le return
-    static int afterReturnCount = 0;
-    auto* deadBloc = currentCFG->addBasicBloc(".after_return" + std::to_string(afterReturnCount++));
     auto* deadBloc = createDeadBlock(".after_return");
     currentCFG->setCurrentBasicBloc(deadBloc);
 
@@ -361,9 +359,6 @@ antlrcpp::Any IRVisitor::visitWhile_stmt(ifccParser::While_stmtContext* ctx) {
 
     IRBasicBloc* entryBloc = currentCFG->getCurrentBasicBloc();
 
-    IRBasicBloc* condBloc = currentCFG->addBasicBloc("while_cond");
-    IRBasicBloc* bodyBloc = currentCFG->addBasicBloc("while_body");
-    IRBasicBloc* endBloc  = currentCFG->addBasicBloc("after_while");
     IRBasicBloc* condBloc = currentCFG->addBasicBlocUnique("while_cond");
     IRBasicBloc* bodyBloc = currentCFG->addBasicBlocUnique("while_body");
     IRBasicBloc* endBloc  = currentCFG->addBasicBlocUnique("after_while");
@@ -381,12 +376,10 @@ antlrcpp::Any IRVisitor::visitWhile_stmt(ifccParser::While_stmtContext* ctx) {
     currentCFG->setCurrentBasicBloc(bodyBloc);
     loopStack.push_back({condBloc, endBloc});
 
-    for(auto stmt : ctx->stmt()){
     for (auto stmt : ctx->block()->stmt()) {
         visit(stmt);
     }
 
-    bodyBloc->setExitTrue(condBloc);
     loopStack.pop_back();
     currentCFG->getCurrentBasicBloc()->setExitTrue(condBloc);
 
@@ -410,24 +403,20 @@ antlrcpp::Any IRVisitor::visitIf_elsifelse(ifccParser::If_elsifelseContext *ctx)
 
     std::vector<IRBasicBloc*> thenBlocs;
     for (size_t i = 0; i < nConds; i++) {
-        thenBlocs.push_back(currentCFG->addBasicBloc(".then_" + std::to_string(i)));
         thenBlocs.push_back(currentCFG->addBasicBlocUnique(".then_"));
     }
 
     std::vector<IRBasicBloc*> nextTestBlocs;
     for (size_t i = 1; i < nConds; i++) {
-        falseBlocs.push_back(currentCFG->addBasicBloc(".test_" + std::to_string(i)));
         falseBlocs.push_back(currentCFG->addBasicBlocUnique(".test_"));
     }
 
     IRBasicBloc* elseBloc = nullptr;
     if (nBlocks > nConds) {
-        elseBloc = currentCFG->addBasicBloc(".else");
         elseBloc = currentCFG->addBasicBlocUnique(".else");
     }
 
 
-    IRBasicBloc* exitBloc = currentCFG->addBasicBloc(".if_exit");
     IRBasicBloc* exitBloc = currentCFG->addBasicBlocUnique(".if_exit");
 
     for (size_t i = 0; i < nConds; i++) {
