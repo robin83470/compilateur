@@ -333,6 +333,9 @@ antlrcpp::Any IRVisitor::visitWhile_stmt(ifccParser::While_stmtContext* ctx) {
     IRBasicBloc* condBloc = currentCFG->addBasicBloc("while_cond");
     IRBasicBloc* bodyBloc = currentCFG->addBasicBloc("while_body");
     IRBasicBloc* endBloc  = currentCFG->addBasicBloc("after_while");
+    IRBasicBloc* condBloc = currentCFG->addBasicBlocUnique("while_cond");
+    IRBasicBloc* bodyBloc = currentCFG->addBasicBlocUnique("while_body");
+    IRBasicBloc* endBloc  = currentCFG->addBasicBlocUnique("after_while");
 
     entryBloc->setExitTrue(condBloc);
 
@@ -376,24 +379,25 @@ antlrcpp::Any IRVisitor::visitIf_elsifelse(ifccParser::If_elsifelseContext *ctx)
 
     std::vector<IRBasicBloc*> thenBlocs;
     for (size_t i = 0; i < nConds; i++) {
-        thenBlocs.push_back(
-            currentCFG->addBasicBloc(".then_" + std::to_string(ifId) + "_" + std::to_string(i))
-        );
+        thenBlocs.push_back(currentCFG->addBasicBloc(".then_" + std::to_string(i)));
+        thenBlocs.push_back(currentCFG->addBasicBlocUnique(".then_"));
     }
 
     std::vector<IRBasicBloc*> nextTestBlocs;
     for (size_t i = 1; i < nConds; i++) {
-        nextTestBlocs.push_back(
-            currentCFG->addBasicBloc(".test_" + std::to_string(ifId) + "_" + std::to_string(i))
-        );
+        falseBlocs.push_back(currentCFG->addBasicBloc(".test_" + std::to_string(i)));
+        falseBlocs.push_back(currentCFG->addBasicBlocUnique(".test_"));
     }
 
     IRBasicBloc* elseBloc = nullptr;
-    if (hasElse) {
-        elseBloc = currentCFG->addBasicBloc(".else_" + std::to_string(ifId));
+    if (nBlocks > nConds) {
+        elseBloc = currentCFG->addBasicBloc(".else");
+        elseBloc = currentCFG->addBasicBlocUnique(".else");
     }
 
-    IRBasicBloc* exitBloc = currentCFG->addBasicBloc(".if_exit_" + std::to_string(ifId));
+
+    IRBasicBloc* exitBloc = currentCFG->addBasicBloc(".if_exit");
+    IRBasicBloc* exitBloc = currentCFG->addBasicBlocUnique(".if_exit");
 
     for (size_t i = 0; i < nConds; i++) {
         currentCFG->setCurrentBasicBloc(currentTestBloc);

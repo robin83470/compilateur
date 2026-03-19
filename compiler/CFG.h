@@ -55,6 +55,7 @@ public:
 
     /// Ajoute un bloc au CFG et retourne un pointeur vers celui-ci.
     IRBasicBloc* addBasicBloc(const std::string& label);
+    IRBasicBloc* addBasicBlocUnique(const std::string& prefix);
 
     IRBasicBloc* getCurrentBasicBloc() const { return currentBasicBloc; }
 

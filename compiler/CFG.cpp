@@ -97,6 +97,10 @@ IRBasicBloc* IRControlFlowGraph::addBasicBloc(const std::string& label) {
     return bloc;
 }
 
+IRBasicBloc* IRControlFlowGraph::addBasicBlocUnique(const std::string& prefix) {
+    return addBasicBloc(prefix + std::to_string(nextBlocNumber++));
+}
+
 std::string IRControlFlowGraph::newTemp(const std::string& type) {
     return symbolTable->newTemp(type);
 }
