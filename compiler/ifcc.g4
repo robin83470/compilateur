@@ -9,8 +9,9 @@ function : 'int' ID '(' paramList? ')' '{' stmt* '}'
 
 paramList : 'int' ID (',' 'int' ID)* ;
 
-stmt : return_stmt | declaration_stmt | assign_stmt | while_stmt | if_stmt ;
+stmt : return_stmt | declaration_stmt | assign_stmt | while_stmt | if_stmt | expr_stmt ;
 
+expr_stmt : rhs ';' ;
 return_stmt : RETURN rhs ';' ;
 
 declarator : pointer_prefix? ID (EQUAL rhs)? ;
@@ -59,6 +60,7 @@ GETCHAR : 'getchar' ;
 PUTCHAR : 'putchar' ;
 CONST : [0-9]+ ;
 CHARCONST : '\'' ( '\\' . | ~('\\'|'\'') ) '\'' ;
+LINE_COMMENT : '//' ~[\r\n]* -> skip ;
 COMMENT : '/*' .*? '*/' -> skip ;
 DIRECTIVE : '#' .*? '\n' -> skip ;
 WS    : [ \t\r\n] -> channel(HIDDEN);
