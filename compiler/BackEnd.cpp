@@ -83,6 +83,8 @@ void X86BackEnd::generateEpilogue(std::ostream& out) {
 }
 
 void ARMBackEnd::generateEpilogue(std::ostream& out) {
+    out << ".epilogue:\n";
+
     int offsetRetval = cfg->getSymbolTable()->getOffset("!retval");
     arm_codegen::emitLoadWFromOffset(out, offsetRetval, "w0");
 

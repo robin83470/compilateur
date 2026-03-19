@@ -15,6 +15,7 @@ public:
     IRVisitor(SymbolTable* symbolTable);
 
     IRControlFlowGraph* buildIr(antlr4::tree::ParseTree* tree);
+    
 
     const std::vector<std::pair<IRControlFlowGraph*, SymbolTable*>>& getAllFunctions() const {
         return allFunctions;
@@ -45,9 +46,15 @@ public:
     virtual antlrcpp::Any visitExpr_putchar(ifccParser::Expr_putcharContext* ctx) override;
     virtual antlrcpp::Any visitExpr_funcCall(ifccParser::Expr_funcCallContext* ctx) override;
     virtual antlrcpp::Any visitRhsList(ifccParser::RhsListContext* ctx) override;
+<<<<<<< HEAD
+=======
+    virtual antlrcpp::Any visitExpr_equality(ifccParser::Expr_equalityContext *ctx)  override;
+
+>>>>>>> cd35b2053b652004460bc52a9b5731f72b8759a2
 private:
     std::vector<std::pair<IRControlFlowGraph*, SymbolTable*>> allFunctions;
     IRBasicBloc* epilogueBloc = nullptr;  //pointeur vers le bloc épilogue, pour y ajouter les instructions de retour
     IRControlFlowGraph* currentCFG = nullptr;
     SymbolTable* symbolTable;
+    int ifCounter = 0;
 };
