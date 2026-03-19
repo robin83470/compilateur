@@ -440,9 +440,11 @@ void IRInstrNeg::genARM(std::ostream& out) const {
     out << "    neg w10, w9\n";
     arm_codegen::emitStoreWToOffset(out, offsetDest, "w10");
 }
+
 // ═══════════════════════════════════════════════════════════════════
 // IRInstrPutchar
 // ═══════════════════════════════════════════════════════════════════
+
 IRInstrPutchar::IRInstrPutchar(IRBasicBloc* parentBloc, const std::string& dest, const std::string& src)
     : IRInstruction(parentBloc), dest(dest), src(src) {}
 
@@ -459,7 +461,11 @@ void IRInstrPutchar::genX86(std::ostream& out) const {
 }
 
 void IRInstrPutchar::genARM(std::ostream& out) const {
-    // TODO: implémenter la logique
+    int offsetSrc = parentBloc->getCFG()->getSymbolTable()->getOffset(src);
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+    arm_codegen::emitLoadWFromOffset(out, offsetSrc, "w0");
+    out << "    bl _putchar\n";
+    arm_codegen::emitStoreWToOffset(out, offsetDest, "w0");
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -470,7 +476,7 @@ IRInstrGetchar::IRInstrGetchar(IRBasicBloc* parentBloc, const std::string& dest)
     : IRInstruction(parentBloc), dest(dest) {}
 
 void IRInstrGetchar::printDebug(std::ostream& out) const {
-    out << " getchar " << dest << "\n";
+    out << "  getchar " << dest << "\n";
 }
 
 void IRInstrGetchar::genX86(std::ostream& out) const {
@@ -480,7 +486,9 @@ void IRInstrGetchar::genX86(std::ostream& out) const {
 }
 
 void IRInstrGetchar::genARM(std::ostream& out) const {
-    // TODO: implémenter la logique
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+    out << "    bl _getchar\n";
+    arm_codegen::emitStoreWToOffset(out, offsetDest, "w0");
 }
 
 // ═══════════════════════════════════════════════════════════════════
