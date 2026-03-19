@@ -1,0 +1,7 @@
+int main() {
+    int n = 0;
+    while (n < 3) {
+        { n = n + 1; }
+    }
+    return n;
+}
