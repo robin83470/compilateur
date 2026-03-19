@@ -72,6 +72,10 @@ antlrcpp::Any IRVisitor::visitFunction(ifccParser::FunctionContext* ctx) {
 
     return 0;
 }
+IRBasicBloc* IRVisitor::createDeadBlock(const std::string& prefix) {
+    return currentCFG->addBasicBlocUnique(prefix);
+}
+
 antlrcpp::Any IRVisitor::visitReturn_stmt(ifccParser::Return_stmtContext* ctx) {
     std::string tmp = std::any_cast<std::string>(visit(ctx->rhs()));
     auto* bloc = currentCFG->getCurrentBasicBloc();
@@ -83,6 +87,7 @@ antlrcpp::Any IRVisitor::visitReturn_stmt(ifccParser::Return_stmtContext* ctx) {
     // Créer un nouveau bloc pour le code mort après le return
     static int afterReturnCount = 0;
     auto* deadBloc = currentCFG->addBasicBloc(".after_return" + std::to_string(afterReturnCount++));
+    auto* deadBloc = createDeadBlock(".after_return");
     currentCFG->setCurrentBasicBloc(deadBloc);
 
     return 0;
