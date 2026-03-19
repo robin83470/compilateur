@@ -16,8 +16,13 @@ public:
 
     IRControlFlowGraph* buildIr(antlr4::tree::ParseTree* tree);
 
+    const std::vector<std::pair<IRControlFlowGraph*, SymbolTable*>>& getAllFunctions() const {
+        return allFunctions;
+    }
+
     // ── Visiteurs ANTLR ─────────────────────────────────────────
     virtual antlrcpp::Any visitProg(ifccParser::ProgContext* ctx) override;
+    virtual antlrcpp::Any visitFunction(ifccParser::FunctionContext* ctx) override;
     virtual antlrcpp::Any visitReturn_stmt(ifccParser::Return_stmtContext* ctx) override;
     virtual antlrcpp::Any visitDeclaration_stmt(ifccParser::Declaration_stmtContext* ctx) override;
     virtual antlrcpp::Any visitDeclarator(ifccParser::DeclaratorContext* ctx) override;
@@ -40,8 +45,8 @@ public:
     virtual antlrcpp::Any visitExpr_putchar(ifccParser::Expr_putcharContext* ctx) override;
     virtual antlrcpp::Any visitExpr_funcCall(ifccParser::Expr_funcCallContext* ctx) override;
     virtual antlrcpp::Any visitRhsList(ifccParser::RhsListContext* ctx) override;
-
 private:
+    std::vector<std::pair<IRControlFlowGraph*, SymbolTable*>> allFunctions;
     IRBasicBloc* epilogueBloc = nullptr;  //pointeur vers le bloc épilogue, pour y ajouter les instructions de retour
     IRControlFlowGraph* currentCFG = nullptr;
     SymbolTable* symbolTable;

@@ -23,12 +23,55 @@ IRControlFlowGraph* IRVisitor::buildIr(antlr4::tree::ParseTree* tree) {
 }
 
 antlrcpp::Any IRVisitor::visitProg(ifccParser::ProgContext* ctx) {
-    for (auto* stmt : ctx->stmt()) {
-        visit(stmt);
+    for (auto* func : ctx->function()) {
+        visit(func);
     }
     return 0;
 }
 
+antlrcpp::Any IRVisitor::visitFunction(ifccParser::FunctionContext* ctx) {
+    std::string funcName = ctx->ID() ? ctx->ID()->getText() : "main";
+    
+    // === CRÉER UNE NOUVELLE SYMBOL TABLE POUR CETTE FONCTION ===
+    SymbolTable* oldSymbolTable = symbolTable;
+    symbolTable = new SymbolTable();
+    
+    // === CRÉER UN NOUVEAU CFG AVEC LA NOUVELLE SYMBOL TABLE ===
+    IRControlFlowGraph* oldCFG = currentCFG;
+    currentCFG = new IRControlFlowGraph(symbolTable);
+    
+    // === INITIALISER LE CFG ===
+    currentCFG->addBasicBloc(funcName + "_entry");
+    currentCFG->setCurrentBasicBloc(currentCFG->getBlocs()[0]);
+    
+    symbolTable->addSymbol("!retval");
+    epilogueBloc = currentCFG->addBasicBloc("." + funcName + "_exit");
+    
+    // === AJOUTER LES PARAMÈTRES ===
+    if (ctx->paramList()) {
+        auto* paramList = ctx->paramList();
+        size_t numParams = paramList->ID().size();
+        
+        for (size_t i = 0; i < numParams; i++) {
+            std::string paramName = paramList->ID(i)->getText();
+            symbolTable->addSymbol(paramName);
+            
+            auto* bloc = currentCFG->getCurrentBasicBloc();
+            bloc->addInstruction(new IRInstrGetParam(bloc, paramName, i));
+        }
+    }
+    
+    // === VISITER LE CORPS ===
+    for (auto* stmt : ctx->stmt()) {
+        visit(stmt);
+    }
+    allFunctions.push_back({currentCFG, symbolTable});
+    // === RESTAURER L'ANCIENNE STATE ===
+    symbolTable = oldSymbolTable;
+    currentCFG = oldCFG;
+    
+    return 0;
+}
 antlrcpp::Any IRVisitor::visitReturn_stmt(ifccParser::Return_stmtContext* ctx) {
     std::string tmp = std::any_cast<std::string>(visit(ctx->rhs()));
     auto* bloc = currentCFG->getCurrentBasicBloc();
@@ -54,6 +97,9 @@ antlrcpp::Any IRVisitor::visitDeclaration_stmt(ifccParser::Declaration_stmtConte
 
 antlrcpp::Any IRVisitor::visitDeclarator(ifccParser::DeclaratorContext* ctx) {
     std::string varName = ctx->ID()->getText();
+
+    symbolTable->addSymbol(varName);
+
     if (ctx->EQUAL()) {
         std::string tmp = std::any_cast<std::string>(visit(ctx->rhs()));
         auto* bloc = currentCFG->getCurrentBasicBloc();

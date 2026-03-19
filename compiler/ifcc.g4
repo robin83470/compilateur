@@ -2,7 +2,12 @@ grammar ifcc;
 
 axiom : prog EOF ;
 
-prog : 'int' 'main' '(' ')' '{' stmt* '}' ;
+prog : function* ;
+
+function : 'int' ID '(' paramList? ')' '{' stmt* '}' 
+         | 'int' 'main' '(' ')' '{' stmt* '}' ;
+
+paramList : 'int' ID (',' 'int' ID)* ;
 
 stmt : return_stmt | declaration_stmt | assign_stmt | while_stmt | if_stmt ;
 

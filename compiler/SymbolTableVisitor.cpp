@@ -123,3 +123,20 @@ void SymbolTableVisitor::checkVariableUsed(const std::string& varName) {
     // getSymbol() sort en erreur si la variable n'existe pas
     symbolTable.getSymbol(varName).used = true;
 }
+
+antlrcpp::Any SymbolTableVisitor::visitFunction(ifccParser::FunctionContext *ctx) {
+    // Ajouter les paramètres à la symbol table avant de visiter le corps
+    if (ctx->paramList()) {
+        auto* paramList = ctx->paramList();
+        for (auto* id : paramList->ID()) {
+            std::string paramName = id->getText();
+            symbolTable.addSymbol(paramName);
+            symbolTable.getSymbol(paramName).used = true;
+        }
+    }
+    // Visiter le corps
+    for (auto* stmt : ctx->stmt()) {
+        visit(stmt);
+    }
+    return 0;
+}
