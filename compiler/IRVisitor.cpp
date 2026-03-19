@@ -152,6 +152,20 @@ antlrcpp::Any IRVisitor::visitBreak_stmt(ifccParser::Break_stmtContext* ctx) {
     currentCFG->setCurrentBasicBloc(createDeadBlock(".after_break"));
     return 0;
 }
+
+antlrcpp::Any IRVisitor::visitContinue_stmt(ifccParser::Continue_stmtContext* ctx) {
+
+    if (loopStack.empty()) {
+        throw std::runtime_error("`continue` used outside of a loop");
+    }
+
+    auto* bloc = currentCFG->getCurrentBasicBloc();
+    bloc->setExitTrue(loopStack.back().continueNextBlock);
+
+    currentCFG->setCurrentBasicBloc(createDeadBlock(".after_continue"));
+    return 0;
+}
+
 // ─── Visiteurs d'expressions ───────────────────────────────────────
 // Convention : chaque visiteur d'expression retourne un std::string
 // contenant le nom du temporaire (ou de la variable) où le résultat
