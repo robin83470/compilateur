@@ -62,12 +62,31 @@ antlrcpp::Any IRVisitor::visitDeclarator(ifccParser::DeclaratorContext* ctx) {
     return 0;
 }
 
+antlrcpp::Any IRVisitor::visitPointer_prefix(ifccParser::Pointer_prefixContext* ctx) {
+    // The symbol table visitor already resolves declaration types.
+    // IR generation does not need pointer depth at this stage.
+    return 0;
+}
+
 antlrcpp::Any IRVisitor::visitAssign_stmt(ifccParser::Assign_stmtContext* ctx) {
-    std::string varName = ctx->ID()->getText();
+    std::string varName = std::any_cast<std::string>(visit(ctx->lvalue()));
     std::string tmp = std::any_cast<std::string>(visit(ctx->rhs()));
     auto* bloc = currentCFG->getCurrentBasicBloc();
     bloc->addInstruction(new IRInstrCopy(bloc, varName, tmp));
     return 0;
+}
+
+antlrcpp::Any IRVisitor::visitLvalue_id(ifccParser::Lvalue_idContext* ctx) {
+    return ctx->ID()->getText();
+}
+
+antlrcpp::Any IRVisitor::visitLvalue_deref(ifccParser::Lvalue_derefContext* ctx) {
+    (void)ctx;
+    throw std::runtime_error("Pointer dereference assignment is not implemented in IR yet.");
+}
+
+antlrcpp::Any IRVisitor::visitLvalue_parenthese(ifccParser::Lvalue_parentheseContext* ctx) {
+    return visit(ctx->lvalue());
 }
 
 // ─── Visiteurs d'expressions ───────────────────────────────────────
@@ -188,6 +207,16 @@ antlrcpp::Any IRVisitor::visitExpr_parenthese(ifccParser::Expr_parentheseContext
     return visit(ctx->rhs());
 }
 
+antlrcpp::Any IRVisitor::visitExpr_addrof(ifccParser::Expr_addrofContext* ctx) {
+    (void)ctx;
+    throw std::runtime_error("Address-of operator is not implemented in IR yet.");
+}
+
+antlrcpp::Any IRVisitor::visitExpr_deref(ifccParser::Expr_derefContext* ctx) {
+    (void)ctx;
+    throw std::runtime_error("Pointer dereference expression is not implemented in IR yet.");
+}
+
 antlrcpp::Any IRVisitor::visitExpr_comparison(ifccParser::Expr_comparisonContext* ctx) {
     std::string lhs = std::any_cast<std::string>(visit(ctx->rhs(0)));
     std::string rhs = std::any_cast<std::string>(visit(ctx->rhs(1)));
@@ -208,6 +237,21 @@ antlrcpp::Any IRVisitor::visitExpr_comparison(ifccParser::Expr_comparisonContext
         bloc->addInstruction(new IRInstrCmp(bloc, tmp, lhs, rhs, IRInstrCmp::EQ));
     }
     else if (op == "!=") {
+        bloc->addInstruction(new IRInstrCmp(bloc, tmp, lhs, rhs, IRInstrCmp::NEQ));
+    }
+    return tmp;
+}
+
+antlrcpp::Any IRVisitor::visitExpr_equality(ifccParser::Expr_equalityContext* ctx) {
+    std::string lhs = std::any_cast<std::string>(visit(ctx->rhs(0)));
+    std::string rhs = std::any_cast<std::string>(visit(ctx->rhs(1)));
+    std::string tmp = currentCFG->newTemp();
+    auto* bloc = currentCFG->getCurrentBasicBloc();
+
+    std::string op = ctx->children[1]->getText();
+    if (op == "==") {
+        bloc->addInstruction(new IRInstrCmp(bloc, tmp, lhs, rhs, IRInstrCmp::EQ));
+    } else {
         bloc->addInstruction(new IRInstrCmp(bloc, tmp, lhs, rhs, IRInstrCmp::NEQ));
     }
     return tmp;
