@@ -470,3 +470,28 @@ antlrcpp::Any IRVisitor::visitExpr_putchar(ifccParser::Expr_putcharContext* ctx)
     bloc->addInstruction(new IRInstrPutchar(bloc, tmp, arg));
     return tmp;
 }
+
+antlrcpp::Any IRVisitor::visitExpr_funcCall(ifccParser::Expr_funcCallContext* ctx) {
+    std::string funcName = ctx->ID()->getText();
+    std::vector<std::string> args;
+    
+    if (ctx->rhsList()) {
+        auto rhsListResult = visit(ctx->rhsList());
+        args = std::any_cast<std::vector<std::string>>(rhsListResult);
+    }
+    
+    std::string dest = currentCFG->newTemp();
+    auto* bloc = currentCFG->getCurrentBasicBloc();
+    bloc->addInstruction(new IRInstrCall(bloc, dest, funcName, args));
+    
+    return dest;
+}
+
+antlrcpp::Any IRVisitor::visitRhsList(ifccParser::RhsListContext* ctx) {
+    std::vector<std::string> args;
+    for (auto* rhs : ctx->rhs()) {
+        std::string arg = std::any_cast<std::string>(visit(rhs));
+        args.push_back(arg);
+    }
+    return args;
+}

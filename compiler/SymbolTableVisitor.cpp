@@ -199,8 +199,20 @@ void SymbolTableVisitor::checkVariableUsed(const std::string& varName) {
     symbolTable.getSymbol(varName).used = true;
 }
 
+antlrcpp::Any SymbolTableVisitor::visitExpr_funcCall(ifccParser::Expr_funcCallContext* ctx) {
+    // Vérifier les types des arguments
+    if (ctx->rhsList()) {
+        for (auto* rhs : ctx->rhsList()->rhs()) {
+            visit(rhs);
+        }
+    }
+    return std::string("int");
+}
+
 antlrcpp::Any SymbolTableVisitor::visitFunction(ifccParser::FunctionContext *ctx) {
-    // Ajouter les paramètres à la symbol table avant de visiter le corps
+    SymbolTable savedTable = symbolTable;  // sauvegarde
+    symbolTable = SymbolTable{};           // table fraîche pour cette fonction
+
     if (ctx->paramList()) {
         auto* paramList = ctx->paramList();
         for (auto* id : paramList->ID()) {
@@ -209,10 +221,11 @@ antlrcpp::Any SymbolTableVisitor::visitFunction(ifccParser::FunctionContext *ctx
             symbolTable.getSymbol(paramName).used = true;
         }
     }
-    // Visiter le corps
     for (auto* stmt : ctx->stmt()) {
         visit(stmt);
     }
+
+    symbolTable = savedTable;  // restaure
     return 0;
 }
 void SymbolTableVisitor::requireType(const std::string& actual, const std::string& expected, const std::string& where) {

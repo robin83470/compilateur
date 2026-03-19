@@ -21,7 +21,7 @@ assign_stmt : lvalue EQUAL rhs ';' ;
 while_stmt : WHILE '(' rhs ')' '{' stmt* '}' ;
 WHILE : 'while' ; 
 
-block : '{' stmt* '}' ;
+block : '{' stmt* '}' | stmt ;
 
 if_stmt: 'if' '(' rhs ')' block ('else' 'if' '(' rhs ')' block)* ('else' block)? #if_elsifelse ;
 
@@ -45,6 +45,7 @@ rhs :
     | '(' rhs ')'                      # Expr_parenthese
     | GETCHAR '(' ')'                  # Expr_getchar
     | PUTCHAR '(' io_arg ')'           # Expr_putchar
+    | ID '(' rhsList? ')' # Expr_funcCall
     | CONST                            # Expr_const
     | CHARCONST                        # Expr_char
     | ID                               # Expr_id
