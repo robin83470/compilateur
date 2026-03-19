@@ -15,6 +15,7 @@ public:
     IRVisitor(SymbolTable* symbolTable);
 
     IRControlFlowGraph* buildIr(antlr4::tree::ParseTree* tree);
+    
 
     // ── Visiteurs ANTLR ─────────────────────────────────────────
     virtual antlrcpp::Any visitProg(ifccParser::ProgContext* ctx) override;
@@ -38,9 +39,11 @@ public:
     virtual antlrcpp::Any visitWhile_stmt(ifccParser::While_stmtContext* ctx) override;
     virtual antlrcpp::Any visitExpr_getchar(ifccParser::Expr_getcharContext* ctx) override;
     virtual antlrcpp::Any visitExpr_putchar(ifccParser::Expr_putcharContext* ctx) override;
+    virtual antlrcpp::Any visitExpr_equality(ifccParser::Expr_equalityContext *ctx)  override;
 
 private:
     IRBasicBloc* epilogueBloc = nullptr;  //pointeur vers le bloc épilogue, pour y ajouter les instructions de retour
     IRControlFlowGraph* currentCFG = nullptr;
     SymbolTable* symbolTable;
+    int ifCounter = 0;
 };

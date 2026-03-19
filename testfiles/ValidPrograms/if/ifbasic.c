@@ -1,11 +1,14 @@
 int main() {
     int a = 2;
     if (a > 4) {    
-        a = a - 1;
+        a = 10;
     }
-    else if 
-        (a == 2) {
-        a = a + 1;
+    else if (a == 2) {
+        a = 20;
     }
-   return a;
+    else
+    {
+        a = 30;
+    }   
+    return a;
 }
