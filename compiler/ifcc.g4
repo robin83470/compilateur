@@ -13,9 +13,11 @@ stmt : return_stmt | declaration_stmt | assign_stmt | while_stmt | if_stmt ;
 
 return_stmt : RETURN rhs ';' ;
 
-declarator : ID (EQUAL rhs)? ;
+declarator : pointer_prefix? ID (EQUAL rhs)? ;
+pointer_prefix : '*' pointer_prefix? ;
 declaration_stmt : 'int' declarator (',' declarator)* ';' ;
-assign_stmt : ID EQUAL rhs ';' ;
+assign_stmt : lvalue EQUAL rhs ';' ;
+
 while_stmt : WHILE '(' rhs ')' '{' stmt* '}' ;
 WHILE : 'while' ; 
 
@@ -23,16 +25,23 @@ block : '{' stmt* '}' ;
 
 if_stmt: 'if' '(' rhs ')' block ('else' 'if' '(' rhs ')' block)* ('else' block)? #if_elsifelse ;
 
-rhs : 
-    ('+'|'-'|'!') rhs                      # Expr_moinsunaire
-    | rhs ('*'|'/'|'%') rhs            # Expr_multdiv
-    | rhs ('+'|'-') rhs                # Expr_plusmoins
+lvalue
+    : ID # Lvalue_id
+    | '*' lvalue # Lvalue_deref
+    | '(' lvalue ')' # Lvalue_parenthese
+;
+
+rhs :
+    ('+'|'-'|'!') rhs # Expr_moinsunaire
+    | '*' rhs # Expr_deref
+    | BAND lvalue # Expr_addrof
+    | rhs ('*'|'/'|'%') rhs # Expr_multdiv
+    | rhs ('+'|'-') rhs # Expr_plusmoins
     | rhs (CMPLE|CMPGE|CMPLT|CMPGT) rhs # Expr_comparison
     | rhs (CMPEQ|CMPNE) rhs            # Expr_equality
     | rhs BAND rhs                     # Expr_and
     | rhs BOR rhs                      # Expr_or
     | rhs BXOR rhs                     # Expr_xor
-    | ID '(' rhsList? ')'              # Expr_funcCall
     | '(' rhs ')'                      # Expr_parenthese
     | GETCHAR '(' ')'                  # Expr_getchar
     | PUTCHAR '(' io_arg ')'           # Expr_putchar
@@ -68,4 +77,3 @@ BAND : '&' ;
 BXOR : '^' ;
 BOR  : '|' ;
 BNOT : '!';
-

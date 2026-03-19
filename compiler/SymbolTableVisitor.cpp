@@ -1,6 +1,24 @@
 #include "SymbolTableVisitor.h"
 #include <cstdlib>
 #include <iostream>
+#include <stdexcept>
+
+namespace {
+std::string normalizeType(const std::string& type) {
+    std::string out;
+    out.reserve(type.size());
+    for (char c : type) {
+        if (c != ' ' && c != '\t' && c != '\n' && c != '\r') {
+            out.push_back(c);
+        }
+    }
+    return out;
+}
+
+bool isIntType(const std::string& type) {
+    return normalizeType(type) == "int";
+}
+}
 
 antlrcpp::Any SymbolTableVisitor::visitProg(ifccParser::ProgContext *ctx) {
     visitChildren(ctx);
@@ -13,29 +31,60 @@ antlrcpp::Any SymbolTableVisitor::visitDeclaration_stmt(ifccParser::Declaration_
     return visitChildren(ctx);
 }
 
+antlrcpp::Any SymbolTableVisitor::visitPointer_prefix(ifccParser::Pointer_prefixContext *ctx) {
+    if (ctx->pointer_prefix() == nullptr) {
+        return 1;
+    }
+
+    int subDepth = std::any_cast<int>(visit(ctx->pointer_prefix()));
+    return subDepth + 1;
+}
+
 
 antlrcpp::Any SymbolTableVisitor::visitAssign_stmt(ifccParser::Assign_stmtContext *ctx) {
-    std::string varName = ctx->ID()->getText();
-    checkVariableUsed(varName);
-
-    visit(ctx->rhs());   
+    std::string lhsType = std::any_cast<std::string>(visit(ctx->lvalue()));
+    std::string rhsType = std::any_cast<std::string>(visit(ctx->rhs()));
+    requireType(rhsType, lhsType, "assignation");
 
     return 0;
 }
 
+antlrcpp::Any SymbolTableVisitor::visitLvalue_id(ifccParser::Lvalue_idContext *ctx) {
+    std::string varName = ctx->ID()->getText();
+    checkVariableUsed(varName);
+    return symbolTable.getType(varName);
+}
+
+antlrcpp::Any SymbolTableVisitor::visitLvalue_deref(ifccParser::Lvalue_derefContext *ctx) {
+    std::string nestedType = std::any_cast<std::string>(visit(ctx->lvalue()));
+    return removePointerLevel(nestedType, "deref lvalue");
+}
+
+antlrcpp::Any SymbolTableVisitor::visitLvalue_parenthese(ifccParser::Lvalue_parentheseContext *ctx) {
+    return visit(ctx->lvalue());
+}
 
 antlrcpp::Any SymbolTableVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx) {
-    visit(ctx->rhs());
+    std::string returnType = std::any_cast<std::string>(visit(ctx->rhs()));
+    requireType(returnType, "int", "return");
+
     return 0;
 }
 
 antlrcpp::Any SymbolTableVisitor::visitDeclarator(ifccParser::DeclaratorContext *ctx) {
     std::string varName = ctx->ID()->getText();
+    int pointerDepth = 0;
+    if (ctx->pointer_prefix() != nullptr) {
+        pointerDepth = std::any_cast<int>(visit(ctx->pointer_prefix()));
+    }
 
-    symbolTable.addSymbol(varName);  // Erreur automatique si déjà déclaré
+    std::string varType = "int" + std::string(pointerDepth, '*');
+
+    symbolTable.addSymbol(varName, varType);  // Erreur automatique si déjà déclaré
 
     if (ctx->rhs() != nullptr) {
-        visit(ctx->rhs());   
+        std::string initType = std::any_cast<std::string>(visit(ctx->rhs()));
+        requireType(initType, varType, "initialisation de '" + varName + "'");
         symbolTable.getSymbol(varName).used = true;
     }
 
@@ -45,15 +94,15 @@ antlrcpp::Any SymbolTableVisitor::visitDeclarator(ifccParser::DeclaratorContext 
 antlrcpp::Any SymbolTableVisitor::visitExpr_id(ifccParser::Expr_idContext *ctx) {
     std::string varName = ctx->ID()->getText();
     checkVariableUsed(varName);
-    return 0;
+    return symbolTable.getType(varName);
 }
 
 antlrcpp::Any SymbolTableVisitor::visitExpr_const(ifccParser::Expr_constContext *ctx) {
-    return 0;
+    return std::string("int");
 }
 
 antlrcpp::Any SymbolTableVisitor::visitExpr_char(ifccParser::Expr_charContext *ctx) {
-    return 0;
+    return std::string("int");
 }
 
 antlrcpp::Any SymbolTableVisitor::visitExpr_parenthese(ifccParser::Expr_parentheseContext *ctx) {
@@ -61,62 +110,88 @@ antlrcpp::Any SymbolTableVisitor::visitExpr_parenthese(ifccParser::Expr_parenthe
 }
 
 antlrcpp::Any SymbolTableVisitor::visitExpr_plusmoins(ifccParser::Expr_plusmoinsContext *ctx) {
-    visit(ctx->rhs(0));
-    visit(ctx->rhs(1));
-    return 0;
+    std::string lhs = std::any_cast<std::string>(visit(ctx->rhs(0)));
+    std::string rhs = std::any_cast<std::string>(visit(ctx->rhs(1)));
+    requireType(lhs, "int", "operande gauche de +/-");
+    requireType(rhs, "int", "operande droit de +/-");
+    return std::string("int");
 }
 
 antlrcpp::Any SymbolTableVisitor::visitExpr_multdiv(ifccParser::Expr_multdivContext *ctx) {
-    visit(ctx->rhs(0));
-    visit(ctx->rhs(1));
-    return 0;
+    std::string lhs = std::any_cast<std::string>(visit(ctx->rhs(0)));
+    std::string rhs = std::any_cast<std::string>(visit(ctx->rhs(1)));
+    requireType(lhs, "int", "operande gauche de */%");
+    requireType(rhs, "int", "operande droit de */%");
+    return std::string("int");
 }
 
 antlrcpp::Any SymbolTableVisitor::visitExpr_moinsunaire(ifccParser::Expr_moinsunaireContext *ctx) {
-    visit(ctx->rhs());
-    return 0;
+    std::string operandType = std::any_cast<std::string>(visit(ctx->rhs()));
+    requireType(operandType, "int", "operateur unaire");
+    return std::string("int");
 }
 
 antlrcpp::Any SymbolTableVisitor::visitExpr_comparison(ifccParser::Expr_comparisonContext *ctx) {
-    visit(ctx->rhs(0));
-    visit(ctx->rhs(1));
-    return 0;
+    std::string lhs = std::any_cast<std::string>(visit(ctx->rhs(0)));
+    std::string rhs = std::any_cast<std::string>(visit(ctx->rhs(1)));
+    requireType(lhs, "int", "operande gauche de comparaison");
+    requireType(rhs, "int", "operande droit de comparaison");
+    return std::string("int");
 }
 
 antlrcpp::Any SymbolTableVisitor::visitExpr_equality(ifccParser::Expr_equalityContext *ctx) {
-    visit(ctx->rhs(0));
-    visit(ctx->rhs(1));
-    return 0;
+    std::string lhs = std::any_cast<std::string>(visit(ctx->rhs(0)));
+    std::string rhs = std::any_cast<std::string>(visit(ctx->rhs(1)));
+    requireType(rhs, lhs, "equality");
+    return std::string("int");
 }
 
 antlrcpp::Any SymbolTableVisitor::visitExpr_and(ifccParser::Expr_andContext *ctx) {
-    visit(ctx->rhs(0));
-    visit(ctx->rhs(1));
-    return 0;
+    std::string lhs = std::any_cast<std::string>(visit(ctx->rhs(0)));
+    std::string rhs = std::any_cast<std::string>(visit(ctx->rhs(1)));
+    requireType(lhs, "int", "operande gauche de & binaire");
+    requireType(rhs, "int", "operande droit de & binaire");
+    return std::string("int");
 }
 
 antlrcpp::Any SymbolTableVisitor::visitExpr_xor(ifccParser::Expr_xorContext *ctx) {
-    visit(ctx->rhs(0));
-    visit(ctx->rhs(1));
-    return 0;
+    std::string lhs = std::any_cast<std::string>(visit(ctx->rhs(0)));
+    std::string rhs = std::any_cast<std::string>(visit(ctx->rhs(1)));
+    requireType(lhs, "int", "operande gauche de ^");
+    requireType(rhs, "int", "operande droit de ^");
+    return std::string("int");
 }
 
 antlrcpp::Any SymbolTableVisitor::visitExpr_or(ifccParser::Expr_orContext *ctx) {
-    visit(ctx->rhs(0));
-    visit(ctx->rhs(1));
-    return 0;
+    std::string lhs = std::any_cast<std::string>(visit(ctx->rhs(0)));
+    std::string rhs = std::any_cast<std::string>(visit(ctx->rhs(1)));
+    requireType(lhs, "int", "operande gauche de |");
+    requireType(rhs, "int", "operande droit de |");
+    return std::string("int");
 }
 
 antlrcpp::Any SymbolTableVisitor::visitExpr_getchar(ifccParser::Expr_getcharContext *ctx) {
-    return 0;
+    return std::string("int");
 }
 
 antlrcpp::Any SymbolTableVisitor::visitExpr_putchar(ifccParser::Expr_putcharContext *ctx) {
     auto* ioArg = ctx->io_arg();
     if (ioArg->ID()) {
-        checkVariableUsed(ioArg->ID()->getText());
+        std::string varName = ioArg->ID()->getText();
+        checkVariableUsed(varName);
+        requireType(symbolTable.getType(varName), "int", "argument de putchar");
     }
-    return 0;
+    return std::string("int");
+}
+
+antlrcpp::Any SymbolTableVisitor::visitExpr_addrof(ifccParser::Expr_addrofContext *ctx) {
+    std::string baseType = std::any_cast<std::string>(visit(ctx->lvalue()));
+    return addPointerLevel(baseType);
+}
+
+antlrcpp::Any SymbolTableVisitor::visitExpr_deref(ifccParser::Expr_derefContext *ctx) {
+    std::string ptrType = std::any_cast<std::string>(visit(ctx->rhs()));
+    return removePointerLevel(ptrType, "deref expression");
 }
 
 void SymbolTableVisitor::checkVariableUsed(const std::string& varName) {
@@ -139,4 +214,27 @@ antlrcpp::Any SymbolTableVisitor::visitFunction(ifccParser::FunctionContext *ctx
         visit(stmt);
     }
     return 0;
+}
+void SymbolTableVisitor::requireType(const std::string& actual, const std::string& expected, const std::string& where) {
+    if (normalizeType(actual) != normalizeType(expected)) {
+        throw std::runtime_error(
+            "Erreur de type (" + where + ") : attendu '" + expected + "', recu '" + actual + "'."
+        );
+    }
+}
+
+std::string SymbolTableVisitor::addPointerLevel(const std::string& type) const {
+    return normalizeType(type) + "*";
+}
+
+std::string SymbolTableVisitor::removePointerLevel(const std::string& type, const std::string& where) const {
+    std::string normalized = normalizeType(type);
+    if (normalized.empty() || normalized.back() != '*') {
+        throw std::runtime_error(
+            "Erreur de type (" + where + ") : déréférencement d'une expression non pointeur ('" + type + "')."
+        );
+    }
+
+    normalized.pop_back();
+    return normalized;
 }

@@ -108,12 +108,31 @@ antlrcpp::Any IRVisitor::visitDeclarator(ifccParser::DeclaratorContext* ctx) {
     return 0;
 }
 
+antlrcpp::Any IRVisitor::visitPointer_prefix(ifccParser::Pointer_prefixContext* ctx) {
+    // The symbol table visitor already resolves declaration types.
+    // IR generation does not need pointer depth at this stage.
+    return 0;
+}
+
 antlrcpp::Any IRVisitor::visitAssign_stmt(ifccParser::Assign_stmtContext* ctx) {
-    std::string varName = ctx->ID()->getText();
+    std::string varName = std::any_cast<std::string>(visit(ctx->lvalue()));
     std::string tmp = std::any_cast<std::string>(visit(ctx->rhs()));
     auto* bloc = currentCFG->getCurrentBasicBloc();
     bloc->addInstruction(new IRInstrCopy(bloc, varName, tmp));
     return 0;
+}
+
+antlrcpp::Any IRVisitor::visitLvalue_id(ifccParser::Lvalue_idContext* ctx) {
+    return ctx->ID()->getText();
+}
+
+antlrcpp::Any IRVisitor::visitLvalue_deref(ifccParser::Lvalue_derefContext* ctx) {
+    (void)ctx;
+    throw std::runtime_error("Pointer dereference assignment is not implemented in IR yet.");
+}
+
+antlrcpp::Any IRVisitor::visitLvalue_parenthese(ifccParser::Lvalue_parentheseContext* ctx) {
+    return visit(ctx->lvalue());
 }
 
 // ─── Visiteurs d'expressions ───────────────────────────────────────
@@ -232,6 +251,16 @@ antlrcpp::Any IRVisitor::visitExpr_moinsunaire(ifccParser::Expr_moinsunaireConte
 
 antlrcpp::Any IRVisitor::visitExpr_parenthese(ifccParser::Expr_parentheseContext* ctx) {
     return visit(ctx->rhs());
+}
+
+antlrcpp::Any IRVisitor::visitExpr_addrof(ifccParser::Expr_addrofContext* ctx) {
+    (void)ctx;
+    throw std::runtime_error("Address-of operator is not implemented in IR yet.");
+}
+
+antlrcpp::Any IRVisitor::visitExpr_deref(ifccParser::Expr_derefContext* ctx) {
+    (void)ctx;
+    throw std::runtime_error("Pointer dereference expression is not implemented in IR yet.");
 }
 
 antlrcpp::Any IRVisitor::visitExpr_comparison(ifccParser::Expr_comparisonContext* ctx) {
@@ -440,27 +469,4 @@ antlrcpp::Any IRVisitor::visitExpr_putchar(ifccParser::Expr_putcharContext* ctx)
     std::string tmp = currentCFG->newTemp();
     bloc->addInstruction(new IRInstrPutchar(bloc, tmp, arg));
     return tmp;
-}
-antlrcpp::Any IRVisitor::visitExpr_funcCall(ifccParser::Expr_funcCallContext* ctx) {
-    std::string funcName = ctx->ID()->getText();
-    std::vector<std::string> args;
-
-    if (ctx->rhsList()) {
-        auto argList = std::any_cast<std::vector<std::string>>(visit(ctx->rhsList()));
-        args = argList;
-    }
-
-    std::string tmp = currentCFG->newTemp();
-    auto* bloc = currentCFG->getCurrentBasicBloc();
-    bloc->addInstruction(new IRInstrCall(bloc, tmp, funcName, args));
-    return tmp;
-}
-
-antlrcpp::Any IRVisitor::visitRhsList(ifccParser::RhsListContext* ctx) {
-    std::vector<std::string> args;
-    for (auto* rhs : ctx->rhs()) {
-        std::string arg = std::any_cast<std::string>(visit(rhs));
-        args.push_back(arg);
-    }
-    return args;
 }
