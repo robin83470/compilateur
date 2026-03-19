@@ -5,6 +5,7 @@
 
 namespace {
 std::string normalizeType(const std::string& type) {
+    // Enlève les espaces et les tabulations pour comparer les types de manière plus flexible
     std::string out;
     out.reserve(type.size());
     for (char c : type) {
@@ -21,6 +22,7 @@ bool isIntType(const std::string& type) {
 }
 
 antlrcpp::Any SymbolTableVisitor::visitProg(ifccParser::ProgContext *ctx) {
+    // Visite tous les enfants
     visitChildren(ctx);
     symbolTable.checkUnusedVariables();
     
@@ -32,6 +34,7 @@ antlrcpp::Any SymbolTableVisitor::visitDeclaration_stmt(ifccParser::Declaration_
 }
 
 antlrcpp::Any SymbolTableVisitor::visitPointer_prefix(ifccParser::Pointer_prefixContext *ctx) {
+    // Détermine la profondeur de pointeur (ex: int** -> 2)
     if (ctx->pointer_prefix() == nullptr) {
         return 1;
     }
@@ -42,6 +45,7 @@ antlrcpp::Any SymbolTableVisitor::visitPointer_prefix(ifccParser::Pointer_prefix
 
 
 antlrcpp::Any SymbolTableVisitor::visitAssign_stmt(ifccParser::Assign_stmtContext *ctx) {
+    // Vérifie que le type de l'expression à droite est compatible avec le type de la variable à gauche
     std::string lhsType = std::any_cast<std::string>(visit(ctx->lvalue()));
     std::string rhsType = std::any_cast<std::string>(visit(ctx->rhs()));
     requireType(rhsType, lhsType, "assignation");
@@ -79,6 +83,7 @@ antlrcpp::Any SymbolTableVisitor::visitDeclarator(ifccParser::DeclaratorContext 
     }
 
     std::string varType = "int" + std::string(pointerDepth, '*');
+    // Crée le symbole dans la table des symboles. Par exe : int** x; -> type = "int**"
 
     symbolTable.addSymbol(varName, varType);  // Erreur automatique si déjà déclaré
 
@@ -110,6 +115,7 @@ antlrcpp::Any SymbolTableVisitor::visitExpr_parenthese(ifccParser::Expr_parenthe
 }
 
 antlrcpp::Any SymbolTableVisitor::visitExpr_plusmoins(ifccParser::Expr_plusmoinsContext *ctx) {
+    // Vérifie que lhs et rhs sont de type int et retourne int
     std::string lhs = std::any_cast<std::string>(visit(ctx->rhs(0)));
     std::string rhs = std::any_cast<std::string>(visit(ctx->rhs(1)));
     requireType(lhs, "int", "operande gauche de +/-");
@@ -118,12 +124,15 @@ antlrcpp::Any SymbolTableVisitor::visitExpr_plusmoins(ifccParser::Expr_plusmoins
 }
 
 antlrcpp::Any SymbolTableVisitor::visitExpr_multdiv(ifccParser::Expr_multdivContext *ctx) {
+    // Vérifie que lhs et rhs sont de type int et retourne int
     std::string lhs = std::any_cast<std::string>(visit(ctx->rhs(0)));
     std::string rhs = std::any_cast<std::string>(visit(ctx->rhs(1)));
     requireType(lhs, "int", "operande gauche de */%");
     requireType(rhs, "int", "operande droit de */%");
     return std::string("int");
 }
+
+//  Prochaines méthodes : vérifient que lhs et rhs sont de type int et retournent int
 
 antlrcpp::Any SymbolTableVisitor::visitExpr_moinsunaire(ifccParser::Expr_moinsunaireContext *ctx) {
     std::string operandType = std::any_cast<std::string>(visit(ctx->rhs()));
@@ -175,6 +184,7 @@ antlrcpp::Any SymbolTableVisitor::visitExpr_getchar(ifccParser::Expr_getcharCont
 }
 
 antlrcpp::Any SymbolTableVisitor::visitExpr_putchar(ifccParser::Expr_putcharContext *ctx) {
+    // Vérifie que l'argument de putchar est de type int
     auto* ioArg = ctx->io_arg();
     if (ioArg->ID()) {
         std::string varName = ioArg->ID()->getText();
@@ -228,7 +238,9 @@ antlrcpp::Any SymbolTableVisitor::visitFunction(ifccParser::FunctionContext *ctx
     symbolTable = savedTable;  // restaure
     return 0;
 }
+
 void SymbolTableVisitor::requireType(const std::string& actual, const std::string& expected, const std::string& where) {
+    // Vérifie que les types sont les mêmes (après normalisation) et sort une erreur sinon
     if (normalizeType(actual) != normalizeType(expected)) {
         throw std::runtime_error(
             "Erreur de type (" + where + ") : attendu '" + expected + "', recu '" + actual + "'."
@@ -241,6 +253,7 @@ std::string SymbolTableVisitor::addPointerLevel(const std::string& type) const {
 }
 
 std::string SymbolTableVisitor::removePointerLevel(const std::string& type, const std::string& where) const {
+    // Renvoie le type pointé par un pointeur. Par exemple, "int**" -> "int*"
     std::string normalized = normalizeType(type);
     if (normalized.empty() || normalized.back() != '*') {
         throw std::runtime_error(
