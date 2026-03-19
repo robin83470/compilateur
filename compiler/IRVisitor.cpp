@@ -140,6 +140,18 @@ antlrcpp::Any IRVisitor::visitLvalue_parenthese(ifccParser::Lvalue_parentheseCon
     return visit(ctx->lvalue());
 }
 
+antlrcpp::Any IRVisitor::visitBreak_stmt(ifccParser::Break_stmtContext* ctx) {
+
+    if (loopStack.empty()) {
+        throw std::runtime_error("`break` used outside of a loop");
+    }
+
+    auto* bloc = currentCFG->getCurrentBasicBloc();
+    bloc->setExitTrue(loopStack.back().breakNextBlock);
+
+    currentCFG->setCurrentBasicBloc(createDeadBlock(".after_break"));
+    return 0;
+}
 // ─── Visiteurs d'expressions ───────────────────────────────────────
 // Convention : chaque visiteur d'expression retourne un std::string
 // contenant le nom du temporaire (ou de la variable) où le résultat
