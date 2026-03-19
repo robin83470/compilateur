@@ -32,7 +32,7 @@ lvalue
 ;
 
 rhs :
-    ('+'|'-'|'!') rhs # Expr_moinsunaire
+    ('+'|'-'|BNOT) rhs # Expr_moinsunaire
     | '*' rhs # Expr_deref
     | BAND lvalue # Expr_addrof
     | rhs ('*'|'/'|'%') rhs # Expr_multdiv
