@@ -31,36 +31,36 @@ antlrcpp::Any IRVisitor::visitProg(ifccParser::ProgContext* ctx) {
 
 antlrcpp::Any IRVisitor::visitFunction(ifccParser::FunctionContext* ctx) {
     std::string funcName = ctx->ID() ? ctx->ID()->getText() : "main";
-    
+
     // === CRÉER UNE NOUVELLE SYMBOL TABLE POUR CETTE FONCTION ===
     SymbolTable* oldSymbolTable = symbolTable;
     symbolTable = new SymbolTable();
-    
+
     // === CRÉER UN NOUVEAU CFG AVEC LA NOUVELLE SYMBOL TABLE ===
     IRControlFlowGraph* oldCFG = currentCFG;
     currentCFG = new IRControlFlowGraph(symbolTable);
-    
+
     // === INITIALISER LE CFG ===
     currentCFG->addBasicBloc(funcName + "_entry");
     currentCFG->setCurrentBasicBloc(currentCFG->getBlocs()[0]);
-    
+
     symbolTable->addSymbol("!retval");
     epilogueBloc = currentCFG->addBasicBloc("." + funcName + "_exit");
-    
+
     // === AJOUTER LES PARAMÈTRES ===
     if (ctx->paramList()) {
         auto* paramList = ctx->paramList();
         size_t numParams = paramList->ID().size();
-        
+
         for (size_t i = 0; i < numParams; i++) {
             std::string paramName = paramList->ID(i)->getText();
             symbolTable->addSymbol(paramName);
-            
+
             auto* bloc = currentCFG->getCurrentBasicBloc();
             bloc->addInstruction(new IRInstrGetParam(bloc, paramName, i));
         }
     }
-    
+
     // === VISITER LE CORPS ===
     for (auto* stmt : ctx->stmt()) {
         visit(stmt);
@@ -69,7 +69,7 @@ antlrcpp::Any IRVisitor::visitFunction(ifccParser::FunctionContext* ctx) {
     // === RESTAURER L'ANCIENNE STATE ===
     symbolTable = oldSymbolTable;
     currentCFG = oldCFG;
-    
+
     return 0;
 }
 antlrcpp::Any IRVisitor::visitReturn_stmt(ifccParser::Return_stmtContext* ctx) {
@@ -345,12 +345,16 @@ antlrcpp::Any IRVisitor::visitWhile_stmt(ifccParser::While_stmtContext* ctx) {
     condBloc->setExitFalse(endBloc);
 
     currentCFG->setCurrentBasicBloc(bodyBloc);
+    loopStack.push_back({condBloc, endBloc});
 
     for(auto stmt : ctx->stmt()){
+    for (auto stmt : ctx->block()->stmt()) {
         visit(stmt);
     }
 
     bodyBloc->setExitTrue(condBloc);
+    loopStack.pop_back();
+    currentCFG->getCurrentBasicBloc()->setExitTrue(condBloc);
 
     currentCFG->setCurrentBasicBloc(endBloc);
 
@@ -474,16 +478,16 @@ antlrcpp::Any IRVisitor::visitExpr_putchar(ifccParser::Expr_putcharContext* ctx)
 antlrcpp::Any IRVisitor::visitExpr_funcCall(ifccParser::Expr_funcCallContext* ctx) {
     std::string funcName = ctx->ID()->getText();
     std::vector<std::string> args;
-    
+
     if (ctx->rhsList()) {
         auto rhsListResult = visit(ctx->rhsList());
         args = std::any_cast<std::vector<std::string>>(rhsListResult);
     }
-    
+
     std::string dest = currentCFG->newTemp();
     auto* bloc = currentCFG->getCurrentBasicBloc();
     bloc->addInstruction(new IRInstrCall(bloc, dest, funcName, args));
-    
+
     return dest;
 }
 

@@ -15,7 +15,7 @@ public:
     IRVisitor(SymbolTable* symbolTable);
 
     IRControlFlowGraph* buildIr(antlr4::tree::ParseTree* tree);
-    
+
 
     const std::vector<std::pair<IRControlFlowGraph*, SymbolTable*>>& getAllFunctions() const {
         return allFunctions;
@@ -55,8 +55,16 @@ public:
     virtual antlrcpp::Any visitRhsList(ifccParser::RhsListContext* ctx) override;
 private:
     std::vector<std::pair<IRControlFlowGraph*, SymbolTable*>> allFunctions;
+    struct LoopContext {
+        IRBasicBloc* continueNextBlock; // bloc où sauter après le continue
+        IRBasicBloc* breakNextBlock;    // bloc où sauter après le break
+    };
+
+    IRBasicBloc* createDeadBlock(const std::string& prefix); // Crée un bloc qui sera sauté (pour les break/continue)
+
     IRBasicBloc* epilogueBloc = nullptr;  //pointeur vers le bloc épilogue, pour y ajouter les instructions de retour
     IRControlFlowGraph* currentCFG = nullptr;
     SymbolTable* symbolTable;
     int ifCounter = 0;
+    std::vector<LoopContext> loopStack; // pile des contextes de boucles pour gérer les boucles
 };
