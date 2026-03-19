@@ -16,7 +16,6 @@ assign_stmt : ID EQUAL rhs ';' ;
 while_stmt : WHILE '(' rhs ')' '{' stmt* '}' ;
 WHILE : 'while' ; 
 
-block : '{' stmt* '}' ;
 
 if_stmt: 'if' '(' rhs ')' block ('else' 'if' '(' rhs ')' block)* ('else' block)? #if_elsifelse ;
 

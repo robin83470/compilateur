@@ -1,0 +1,11 @@
+[33m329cf6c[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mblock[m[33m)[m HEAD@{0}: rebase (finish): returning to refs/heads/block
+[33m329cf6c[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mblock[m[33m)[m HEAD@{1}: pull origin main (start): checkout 329cf6c07b7fba31cc2e75361dfc9da59df9607b
+[33mb3b9398[m HEAD@{2}: rebase (finish): returning to refs/heads/block
+[33mb3b9398[m HEAD@{3}: rebase (finish): refs/heads/block onto 4e3de5972b35397f3affd53a92616fbe400bbbd7
+[33mb3b9398[m HEAD@{4}: checkout: moving from 334056ab7afae9a9a298d0e81e2924f5251a5ace to block
+[33m334056a[m HEAD@{5}: commit: block
+[33m4e3de59[m HEAD@{6}: pull origin main (start): checkout 4e3de5972b35397f3affd53a92616fbe400bbbd7
+[33mb3b9398[m HEAD@{7}: commit: block
+[33md97e7bd[m[33m ([m[1;32mmain[m[33m)[m HEAD@{8}: checkout: moving from main to block
+[33md97e7bd[m[33m ([m[1;32mmain[m[33m)[m HEAD@{9}: pull (finish): returning to refs/heads/main
+[33md97e7bd[m[33m ([m[1;32mmain[m[33m)[m HEAD@{10}: pull (pick): supporter-plusieur-return

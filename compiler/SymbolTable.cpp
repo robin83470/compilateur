@@ -169,12 +169,14 @@ int SymbolTable::getTypeAlign(const std::string& type) const {
 }
 
 const std::string& SymbolTable::getType(const std::string& name) const {
-    auto it = symbols.find(name);
-    if (it == symbols.end()) {
-        std::cerr << "Erreur : le symbole '" << name << "' n'existe pas." << std::endl;
-        exit(1);
+    for (int i = static_cast<int>(scopes.size()) - 1; i >= 0; i--) {
+        auto it = scopes[i].find(name);
+        if (it != scopes[i].end()) {
+            return it->second->type;
+        }
     }
-    return it->second.type;
+    std::cerr << "Erreur : le symbole '" << name << "' n'existe pas." << std::endl;
+    exit(1);
 }
 
 bool SymbolTable::isPointerType(const std::string& type) const {
