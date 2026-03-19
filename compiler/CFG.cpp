@@ -112,6 +112,7 @@ void IRControlFlowGraph::genX86(std::ostream& out) const {
 
 void IRControlFlowGraph::genARM(std::ostream& out) const {
     for (const auto* bloc : blocs) {
+        if (bloc->getLabel() == ".epilogue") continue;
         bloc->genARM(out);
     }
 }
