@@ -251,7 +251,8 @@ public:
 // IRInstrPutchar : putchar(src)
 // Exemple IR : putchar dest src (dest stocke la valeur de retour)
 class IRInstrPutchar : public IRInstruction {
-public:    IRInstrPutchar(IRBasicBloc* parentBloc, const std::string& dest, const std::string& src);
+public:
+    IRInstrPutchar(IRBasicBloc* parentBloc, const std::string& dest, const std::string& src);
 
     void printDebug(std::ostream& out) const override;
     void genX86(std::ostream& out) const override;
@@ -265,7 +266,8 @@ public:    IRInstrPutchar(IRBasicBloc* parentBloc, const std::string& dest, cons
 // IRInstrGetchar : dest = getchar()
 // Exemple IR : getchar dest
 class IRInstrGetchar : public IRInstruction {
-public:    IRInstrGetchar(IRBasicBloc* parentBloc, const std::string& dest);
+public:
+    IRInstrGetchar(IRBasicBloc* parentBloc, const std::string& dest);
 
     void printDebug(std::ostream& out) const override;
     void genX86(std::ostream& out) const override;
@@ -273,4 +275,44 @@ public:    IRInstrGetchar(IRBasicBloc* parentBloc, const std::string& dest);
 
     private:
     std::string dest;
+};
+
+class IRInstrRet : public IRInstruction {
+public:
+    IRInstrRet(IRBasicBloc* parentBloc, const std::string& src);
+
+    void printDebug(std::ostream& out) const override;
+    void genX86(std::ostream& out) const override;
+    void genARM(std::ostream& out) const override;
+
+private:
+    std::string src; // Return
+};
+
+class IRInstrCall : public IRInstruction {
+public:
+    IRInstrCall(IRBasicBloc* parentBloc, 
+                const std::string& dest, 
+                const std::string& funcName, 
+                const std::vector<std::string>& args);
+
+    void printDebug(std::ostream& out) const override;
+    void genX86(std::ostream& out) const override;
+    void genARM(std::ostream& out) const override;
+
+private:
+    std::string dest;      // Variable où on stocke le résultat
+    std::string funcName;  // Nom de la fonction à appeler
+    std::vector<std::string> args; // Liste des variables passées en arguments
+};
+
+class IRInstrGetParam : public IRInstruction {
+public:
+    IRInstrGetParam(IRBasicBloc* parentBloc, const std::string& dest, int paramIndex);
+    void printDebug(std::ostream& out) const override;
+    void genX86(std::ostream& out) const override;
+    void genARM(std::ostream& out) const override;
+private:
+    std::string dest;
+    int paramIndex; // index des paramètres
 };

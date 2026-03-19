@@ -27,6 +27,7 @@ rhs :
     | rhs BAND rhs                     # Expr_and
     | rhs BOR rhs                      # Expr_or
     | rhs BXOR rhs                     # Expr_xor
+    | ID '(' rhsList? ')'              # Expr_funcCall
     | '(' rhs ')'                      # Expr_parenthese
     | GETCHAR '(' ')'                  # Expr_getchar
     | PUTCHAR '(' io_arg ')'           # Expr_putchar
@@ -37,6 +38,7 @@ rhs :
 
 io_arg : GETCHAR '(' ')' | CONST | CHARCONST | ID ;
 
+rhsList : rhs (',' rhs)* ;
 RETURN : 'return' ;
 GETCHAR : 'getchar' ;
 PUTCHAR : 'putchar' ;

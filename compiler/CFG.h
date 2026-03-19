@@ -62,7 +62,6 @@ public:
 
     SymbolTable* getSymbolTable() const { return symbolTable; }
 
-    /// Crée un nouveau temporaire dans la table des symboles et retourne son nom.
     std::string newTemp(const std::string& type = "int");
 
     void genX86(std::ostream& out) const;
