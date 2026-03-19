@@ -51,7 +51,8 @@ public:
     virtual antlrcpp::Any visitWhile_stmt(ifccParser::While_stmtContext* ctx) override;
     virtual antlrcpp::Any visitExpr_getchar(ifccParser::Expr_getcharContext* ctx) override;
     virtual antlrcpp::Any visitExpr_putchar(ifccParser::Expr_putcharContext* ctx) override;
-
+    virtual antlrcpp::Any visitExpr_funcCall(ifccParser::Expr_funcCallContext* ctx) override;
+    virtual antlrcpp::Any visitRhsList(ifccParser::RhsListContext* ctx) override;
 private:
     std::vector<std::pair<IRControlFlowGraph*, SymbolTable*>> allFunctions;
     IRBasicBloc* epilogueBloc = nullptr;  //pointeur vers le bloc épilogue, pour y ajouter les instructions de retour
