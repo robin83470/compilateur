@@ -233,12 +233,23 @@ antlrcpp::Any IRVisitor::visitExpr_comparison(ifccParser::Expr_comparisonContext
     } else if (op == ">=") {
         bloc->addInstruction(new IRInstrCmp(bloc, tmp, lhs, rhs, IRInstrCmp::GE));
     }
-    else if (op == "==") {
+    return tmp;
+}
+
+antlrcpp::Any IRVisitor::visitExpr_equality(ifccParser::Expr_equalityContext *ctx) {
+    std::string lhs = std::any_cast<std::string>(visit(ctx->rhs(0)));
+    std::string rhs = std::any_cast<std::string>(visit(ctx->rhs(1)));
+    std::string tmp = currentCFG->newTemp();
+    auto* bloc = currentCFG->getCurrentBasicBloc();
+
+    std::string op = ctx->children[1]->getText();
+    if (op == "==") {
         bloc->addInstruction(new IRInstrCmp(bloc, tmp, lhs, rhs, IRInstrCmp::EQ));
     }
     else if (op == "!=") {
         bloc->addInstruction(new IRInstrCmp(bloc, tmp, lhs, rhs, IRInstrCmp::NEQ));
     }
+
     return tmp;
 }
 
@@ -320,30 +331,34 @@ antlrcpp::Any IRVisitor::visitWhile_stmt(ifccParser::While_stmtContext* ctx) {
 
 antlrcpp::Any IRVisitor::visitIf_elsifelse(ifccParser::If_elsifelseContext *ctx)
 {
+    int ifId = ifCounter++;
+
     IRBasicBloc* currentTestBloc = currentCFG->getCurrentBasicBloc();
 
     size_t nConds = ctx->rhs().size();
     size_t nBlocks = ctx->block().size();
+    bool hasElse = (nBlocks > nConds);
 
-    // On prépare les blocs "then"
     std::vector<IRBasicBloc*> thenBlocs;
     for (size_t i = 0; i < nConds; i++) {
-        thenBlocs.push_back(currentCFG->addBasicBloc(".then_" + std::to_string(i)));
+        thenBlocs.push_back(
+            currentCFG->addBasicBloc(".then_" + std::to_string(ifId) + "_" + std::to_string(i))
+        );
     }
 
-    // On prépare les blocs de test suivants / else
-    std::vector<IRBasicBloc*> falseBlocs;
+    std::vector<IRBasicBloc*> nextTestBlocs;
     for (size_t i = 1; i < nConds; i++) {
-        falseBlocs.push_back(currentCFG->addBasicBloc(".test_" + std::to_string(i)));
+        nextTestBlocs.push_back(
+            currentCFG->addBasicBloc(".test_" + std::to_string(ifId) + "_" + std::to_string(i))
+        );
     }
 
     IRBasicBloc* elseBloc = nullptr;
-    if (nBlocks > nConds) {
-        elseBloc = currentCFG->addBasicBloc(".else");
+    if (hasElse) {
+        elseBloc = currentCFG->addBasicBloc(".else_" + std::to_string(ifId));
     }
 
-
-    IRBasicBloc* exitBloc = currentCFG->addBasicBloc(".if_exit");
+    IRBasicBloc* exitBloc = currentCFG->addBasicBloc(".if_exit_" + std::to_string(ifId));
 
     for (size_t i = 0; i < nConds; i++) {
         currentCFG->setCurrentBasicBloc(currentTestBloc);
@@ -352,8 +367,8 @@ antlrcpp::Any IRVisitor::visitIf_elsifelse(ifccParser::If_elsifelseContext *ctx)
 
         IRBasicBloc* falseDest = nullptr;
         if (i + 1 < nConds) {
-            falseDest = falseBlocs[i];
-        } else if (elseBloc != nullptr) {
+            falseDest = nextTestBlocs[i];
+        } else if (hasElse) {
             falseDest = elseBloc;
         } else {
             falseDest = exitBloc;
@@ -363,26 +378,37 @@ antlrcpp::Any IRVisitor::visitIf_elsifelse(ifccParser::If_elsifelseContext *ctx)
         currentTestBloc->setExitTrue(thenBlocs[i]);
         currentTestBloc->setExitFalse(falseDest);
 
-        // Corps du then / elsif
+        // Bloc then / else-if
         currentCFG->setCurrentBasicBloc(thenBlocs[i]);
         visit(ctx->block(i));
-        currentCFG->getCurrentBasicBloc()->setExitTrue(exitBloc);
+
+        // Ne relier à exit que si le bloc courant n'a pas déjà une sortie terminale
+        if (currentCFG->getCurrentBasicBloc()->getExitTrue() == nullptr &&
+            currentCFG->getCurrentBasicBloc()->getExitFalse() == nullptr) {
+            currentCFG->getCurrentBasicBloc()->setExitTrue(exitBloc);
+        }
 
         if (i + 1 < nConds) {
-            currentTestBloc = falseBlocs[i];
+            currentTestBloc = nextTestBlocs[i];
         }
     }
 
-    // else final éventuel
-    if (elseBloc != nullptr) {
+    if (hasElse) {
         currentCFG->setCurrentBasicBloc(elseBloc);
         visit(ctx->block(nBlocks - 1));
-        currentCFG->getCurrentBasicBloc()->setExitTrue(exitBloc);
+
+        if (currentCFG->getCurrentBasicBloc()->getExitTrue() == nullptr &&
+            currentCFG->getCurrentBasicBloc()->getExitFalse() == nullptr) {
+            currentCFG->getCurrentBasicBloc()->setExitTrue(exitBloc);
+        }
     }
 
     currentCFG->setCurrentBasicBloc(exitBloc);
     return 0;
 }
+
+
+
 antlrcpp::Any IRVisitor::visitExpr_getchar(ifccParser::Expr_getcharContext* ctx) {
     std::string tmp = currentCFG->newTemp();
     auto* bloc = currentCFG->getCurrentBasicBloc();
