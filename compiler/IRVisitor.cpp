@@ -8,6 +8,8 @@ IRControlFlowGraph* IRVisitor::buildIr(antlr4::tree::ParseTree* tree) {
     currentCFG = new IRControlFlowGraph(symbolTable);
     currentCFG->addBasicBloc(".entry");
 
+    symbolTable->enterScope();
+
     // Réserver le temporaire pour la valeur de retour
     symbolTable->addSymbol("!retval");
 
@@ -18,6 +20,8 @@ IRControlFlowGraph* IRVisitor::buildIr(antlr4::tree::ParseTree* tree) {
     currentCFG->setCurrentBasicBloc(currentCFG->getBlocs()[0]);
 
     visit(tree);
+
+    symbolTable->exitScope();
 
     return currentCFG;
 }
@@ -53,20 +57,25 @@ antlrcpp::Any IRVisitor::visitDeclaration_stmt(ifccParser::Declaration_stmtConte
 }
 
 antlrcpp::Any IRVisitor::visitDeclarator(ifccParser::DeclaratorContext* ctx) {
-    std::string varName = ctx->ID()->getText();
+    std::string sourceName = ctx->ID()->getText();
+    SymbolInfo& symbol = symbolTable->addSymbol(sourceName);
+
     if (ctx->EQUAL()) {
         std::string tmp = std::any_cast<std::string>(visit(ctx->rhs()));
         auto* bloc = currentCFG->getCurrentBasicBloc();
-        bloc->addInstruction(new IRInstrCopy(bloc, varName, tmp));
+        bloc->addInstruction(new IRInstrCopy(bloc, symbol.storageName, tmp));
     }
     return 0;
 }
 
 antlrcpp::Any IRVisitor::visitAssign_stmt(ifccParser::Assign_stmtContext* ctx) {
-    std::string varName = ctx->ID()->getText();
+    std::string sourceName = ctx->ID()->getText();
+    SymbolInfo& symbol = symbolTable->resolveSymbol(sourceName);
+    symbol.used = true;
+
     std::string tmp = std::any_cast<std::string>(visit(ctx->rhs()));
     auto* bloc = currentCFG->getCurrentBasicBloc();
-    bloc->addInstruction(new IRInstrCopy(bloc, varName, tmp));
+    bloc->addInstruction(new IRInstrCopy(bloc, symbol.storageName, tmp));
     return 0;
 }
 
@@ -115,7 +124,10 @@ antlrcpp::Any IRVisitor::visitExpr_char(ifccParser::Expr_charContext* ctx) {
 }
 
 antlrcpp::Any IRVisitor::visitExpr_id(ifccParser::Expr_idContext* ctx) {
-    return ctx->ID()->getText();
+    std::string sourceName = ctx->ID()->getText();
+    SymbolInfo& symbol = symbolTable->resolveSymbol(sourceName);
+    symbol.used = true;
+    return symbol.storageName;
 }
 
 antlrcpp::Any IRVisitor::visitExpr_plusmoins(ifccParser::Expr_plusmoinsContext* ctx) {
@@ -240,6 +252,15 @@ antlrcpp::Any IRVisitor::visitExpr_xor(ifccParser::Expr_xorContext* ctx) {
     return tmp;
 }
 
+antlrcpp::Any IRVisitor::visitBlock(ifccParser::BlockContext* ctx) {
+    symbolTable->enterScope();
+    for (auto* stmt : ctx->stmt()) {
+        visit(stmt);
+    }
+    symbolTable->exitScope();
+    return 0;
+}
+
 antlrcpp::Any IRVisitor::visitWhile_stmt(ifccParser::While_stmtContext* ctx) {
 
     IRBasicBloc* entryBloc = currentCFG->getCurrentBasicBloc();
@@ -260,9 +281,13 @@ antlrcpp::Any IRVisitor::visitWhile_stmt(ifccParser::While_stmtContext* ctx) {
 
     currentCFG->setCurrentBasicBloc(bodyBloc);
 
+    symbolTable->enterScope();
+
     for(auto stmt : ctx->stmt()){
         visit(stmt);
     }
+
+    symbolTable->exitScope();
 
     bodyBloc->setExitTrue(condBloc);
 
@@ -270,6 +295,7 @@ antlrcpp::Any IRVisitor::visitWhile_stmt(ifccParser::While_stmtContext* ctx) {
 
     return 0;
 }
+
 
 
 
@@ -392,3 +418,4 @@ antlrcpp::Any IRVisitor::visitRhsList(ifccParser::RhsListContext* ctx) {
     }
     return args;
 }
+

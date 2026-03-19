@@ -4,7 +4,9 @@ axiom : prog EOF ;
 
 prog : 'int' 'main' '(' ')' '{' stmt* '}' ;
 
-stmt : return_stmt | declaration_stmt | assign_stmt | while_stmt | if_stmt ;
+stmt : return_stmt | declaration_stmt | assign_stmt | while_stmt | block  | if_stmt;
+
+block : '{' stmt* '}' ;
 
 return_stmt : RETURN rhs ';' ;
 

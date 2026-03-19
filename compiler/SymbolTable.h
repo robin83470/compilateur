@@ -3,28 +3,36 @@
 #include <map>
 #include <string>
 #include <iostream>
+#include <memory>
+#include <vector>
 
 struct SymbolInfo {
     int index;
     bool declared;
     bool used;
     std::string type; // Pour l'instant int uniquement
-    std::string name;
     int size;
-    int align;
+    std::string sourceName;
+    std::string storageName;
 };
 
 class SymbolTable {
 public:
     SymbolTable() = default;
 
+    void enterScope(); //ouvrir un nouveau bloc {
+    void exitScope(); //fermer le bloc courant  }
+
     /// Erreur si le symbole existe déjà.
-    void addSymbol(const std::string& name, const std::string& type = "int");
+    SymbolInfo& addSymbol(const std::string& name, const std::string& type = "int");
 
-    /// Erreur si le symbole n'existe pas.
-    SymbolInfo& getSymbol(const std::string& name);
+    /// Recherche un identifiant source dans les scopes actifs.
+    SymbolInfo& resolveSymbol(const std::string& name);
 
-    int getOffset(const std::string& name);
+    /// Recherche un nom interne utilisé par l'IR/backend.
+    SymbolInfo& getStorageSymbol(const std::string& storageName);
+
+    int getOffset(const std::string& storageName);
 
     /// Crée un nouveau temporaire (nom unique) et retourne son nom.
     std::string newTemp(const std::string& type = "int");
@@ -34,14 +42,23 @@ public:
 
     void checkUnusedVariables() const;
 
-    const std::map<std::string, SymbolInfo>& getMap() const { return symbols; }
     int getTypeSize(const std::string& type) const;
     int getTypeAlign(const std::string& type) const;
     const std::string& getType(const std::string& name) const;
     bool isPointerType(const std::string& type) const;
 
 private:
-    std::map<std::string, SymbolInfo> symbols;
+    using Scope = std::map<std::string, SymbolInfo*>;
+
+    // Pile de scopes actifs pour la résolution lexicale.
+    std::vector<Scope> scopes;
+    // Stockage persistant des symboles pour l'IR et le backend.
+    std::vector<std::unique_ptr<SymbolInfo>> ownedSymbols;
+    std::map<std::string, SymbolInfo*> storageSymbols;
     int currentOffset = 0;   // Prochain offset libre (décrémenté)
     int tempCounter = 0;
+    int symbolCounter = 0;
+
+    void ensureActiveScope() const;
+    std::string makeStorageName(const std::string& name);
 };

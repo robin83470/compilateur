@@ -1,11 +1,32 @@
 #include "SymbolTableVisitor.h"
 #include <cstdlib>
 #include <iostream>
+#include <stdexcept>
+
+const std::string& SymbolTableVisitor::getStorageName(const ifccParser::DeclaratorContext* ctx) const {
+    return declaratorStorageNames.at(ctx);
+}
+
+const std::string& SymbolTableVisitor::getStorageName(const ifccParser::Assign_stmtContext* ctx) const {
+    return assignStorageNames.at(ctx);
+}
+
+const std::string& SymbolTableVisitor::getStorageName(const ifccParser::Expr_idContext* ctx) const {
+    return exprStorageNames.at(ctx);
+}
 
 antlrcpp::Any SymbolTableVisitor::visitProg(ifccParser::ProgContext *ctx) {
+    symbolTable.enterScope(); // scope global de main()
     visitChildren(ctx);
-    symbolTable.checkUnusedVariables();
+    symbolTable.exitScope();
     
+    return 0;
+}
+
+antlrcpp::Any SymbolTableVisitor::visitBlock(ifccParser::BlockContext *ctx) {
+    symbolTable.enterScope();
+    visitChildren(ctx);
+    symbolTable.exitScope();
     return 0;
 }
 
@@ -16,6 +37,7 @@ antlrcpp::Any SymbolTableVisitor::visitDeclaration_stmt(ifccParser::Declaration_
 
 antlrcpp::Any SymbolTableVisitor::visitAssign_stmt(ifccParser::Assign_stmtContext *ctx) {
     std::string varName = ctx->ID()->getText();
+    assignStorageNames[ctx] = symbolTable.resolveSymbol(varName).storageName;
     checkVariableUsed(varName);
 
     visit(ctx->rhs());   
@@ -32,11 +54,11 @@ antlrcpp::Any SymbolTableVisitor::visitReturn_stmt(ifccParser::Return_stmtContex
 antlrcpp::Any SymbolTableVisitor::visitDeclarator(ifccParser::DeclaratorContext *ctx) {
     std::string varName = ctx->ID()->getText();
 
-    symbolTable.addSymbol(varName);  // Erreur automatique si déjà déclaré
+    SymbolInfo& info = symbolTable.addSymbol(varName);  // Erreur automatique si déjà déclaré
+    declaratorStorageNames[ctx] = info.storageName;
 
     if (ctx->rhs() != nullptr) {
         visit(ctx->rhs());   
-        symbolTable.getSymbol(varName).used = true;
     }
 
     return 0;
@@ -44,6 +66,7 @@ antlrcpp::Any SymbolTableVisitor::visitDeclarator(ifccParser::DeclaratorContext 
 
 antlrcpp::Any SymbolTableVisitor::visitExpr_id(ifccParser::Expr_idContext *ctx) {
     std::string varName = ctx->ID()->getText();
+    exprStorageNames[ctx] = symbolTable.resolveSymbol(varName).storageName;
     checkVariableUsed(varName);
     return 0;
 }
@@ -121,5 +144,5 @@ antlrcpp::Any SymbolTableVisitor::visitExpr_putchar(ifccParser::Expr_putcharCont
 
 void SymbolTableVisitor::checkVariableUsed(const std::string& varName) {
     // getSymbol() sort en erreur si la variable n'existe pas
-    symbolTable.getSymbol(varName).used = true;
+    symbolTable.resolveSymbol(varName).used = true;
 }

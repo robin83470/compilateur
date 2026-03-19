@@ -1,5 +1,7 @@
 #pragma once
 
+#include <unordered_map>
+
 #include "antlr4-runtime.h"
 #include "generated/ifccBaseVisitor.h"
 #include "SymbolTable.h"
@@ -7,6 +9,10 @@
 class SymbolTableVisitor : public ifccBaseVisitor {
     public:
         SymbolTable symbolTable;
+
+        const std::string& getStorageName(const ifccParser::DeclaratorContext* ctx) const;
+        const std::string& getStorageName(const ifccParser::Assign_stmtContext* ctx) const;
+        const std::string& getStorageName(const ifccParser::Expr_idContext* ctx) const;
 
         virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override;
         virtual antlrcpp::Any visitDeclaration_stmt(ifccParser::Declaration_stmtContext *ctx) override;
@@ -29,4 +35,12 @@ class SymbolTableVisitor : public ifccBaseVisitor {
         virtual antlrcpp::Any visitExpr_putchar(ifccParser::Expr_putcharContext *ctx) override;
     private:
         void checkVariableUsed(const std::string& varName);
+
+        virtual antlrcpp::Any visitBlock(ifccParser::BlockContext *ctx) override;
+    private:
+        void checkVariableUsed(const std::string& varName);
+
+        std::unordered_map<const ifccParser::DeclaratorContext*, std::string> declaratorStorageNames;
+        std::unordered_map<const ifccParser::Assign_stmtContext*, std::string> assignStorageNames;
+        std::unordered_map<const ifccParser::Expr_idContext*, std::string> exprStorageNames;
 };

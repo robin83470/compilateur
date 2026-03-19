@@ -1,5 +1,7 @@
 #pragma once
 
+#include <unordered_map>
+
 #include "antlr4-runtime.h"
 #include "generated/ifccBaseVisitor.h"
 
@@ -41,6 +43,8 @@ public:
     virtual antlrcpp::Any visitExpr_funcCall(ifccParser::Expr_funcCallContext* ctx) override;
     virtual antlrcpp::Any visitRhsList(ifccParser::RhsListContext* ctx) override;
 
+    virtual antlrcpp::Any visitBlock(ifccParser::BlockContext* ctx) override;
+    virtual antlrcpp::Any visitWhile_stmt(ifccParser::While_stmtContext* ctx) override;
 private:
     IRBasicBloc* epilogueBloc = nullptr;  //pointeur vers le bloc épilogue, pour y ajouter les instructions de retour
     IRControlFlowGraph* currentCFG = nullptr;

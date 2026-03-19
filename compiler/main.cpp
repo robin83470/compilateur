@@ -12,7 +12,6 @@
 
 #include "IRVisitor.h"
 #include "BackEnd.h"
-#include "SymbolTableVisitor.h"
 
 using namespace antlr4;
 using namespace std;
@@ -128,10 +127,8 @@ int main(int argn, const char **argv)
     }
     IRControlFlowGraph* cfg = nullptr;
     try {
-        SymbolTableVisitor symbolTableVisitor;
-        symbolTableVisitor.visit(tree);
-
-        IRVisitor irVisitor(&symbolTableVisitor.symbolTable);
+        SymbolTable symbolTable;
+        IRVisitor irVisitor(&symbolTable);
         cfg = irVisitor.buildIr(tree);
 
         unique_ptr<BackEnd> backend;

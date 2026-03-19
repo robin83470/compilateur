@@ -1,5 +1,7 @@
 #include "SymbolTable.h"
+#include <stdexcept>
 
+// Fonctions utilitaires nécessaires à la gestion des types
 static std::string normalizeType(const std::string& t) {
     std::string out;
     out.reserve(t.size());
@@ -26,8 +28,45 @@ static int alignDownNegOffset(int value, int align) {
     return -(absV + (align - rem));
 }
 
-void SymbolTable::addSymbol(const std::string& name, const std::string& type) {
-    if (symbols.count(name) > 0) {
+void SymbolTable::ensureActiveScope() const {
+    if (scopes.empty()) {
+        throw std::runtime_error("internal error: no active scope");
+    }
+}
+
+std::string SymbolTable::makeStorageName(const std::string& name) {
+    if (!name.empty() && name[0] == '!') {
+        return name;
+    }
+    return name + "#" + std::to_string(symbolCounter++);
+}
+
+void SymbolTable::enterScope() {
+    //Ajoute une map vide (nouveau scope) au sommet de la pile
+    scopes.push_back({});
+}
+
+void SymbolTable::exitScope() {
+    ensureActiveScope();
+
+    //vérifier les variables non utilisées dans le scope 
+    for (const auto& pair : scopes.back()) {
+        const SymbolInfo& info = *pair.second;
+        if (!info.sourceName.empty() && info.sourceName[0] == '!') continue; // ignorer les variables temporaires
+        if (!info.used) {
+            std::cerr << "Avertissement : la variable '" << info.sourceName
+                      << "' a été déclarée mais n'est pas utilisée." << std::endl;
+        }
+    }
+    //détruire la portée 
+    scopes.pop_back();    
+}
+
+SymbolInfo& SymbolTable::addSymbol(const std::string& name, const std::string& type) {
+    ensureActiveScope();
+
+    // Vérifie seulement dans le scope COURANT (on a le droit de shadower un scope parent)
+    if (scopes.back().count(name) > 0) {
         std::cerr << "Erreur : le symbole '" << name << "' est déjà déclaré." << std::endl;
         exit(1);
     }
@@ -37,44 +76,67 @@ void SymbolTable::addSymbol(const std::string& name, const std::string& type) {
 
     currentOffset = alignDownNegOffset(currentOffset - sz, al);
 
-    SymbolInfo info;
-    info.index = currentOffset;
-    info.declared = true;
-    info.used = false;
-    info.type = normalizeType(type);
-    info.size = sz;
-    info.align = al;
 
-    symbols[name] = info;
+    auto info = std::make_unique<SymbolInfo>();
+    info->index = currentOffset;
+    info->declared = true;
+    info->used = false;
+    info->type = type;
+    info->size = sz;
+    info->sourceName = name;
+    info->storageName = makeStorageName(name);
+
+
+    SymbolInfo* infoPtr = info.get();
+    scopes.back()[name] = infoPtr;
+    storageSymbols[infoPtr->storageName] = infoPtr;
+    ownedSymbols.push_back(std::move(info));
+
+    return *infoPtr;
 }
 
-SymbolInfo& SymbolTable::getSymbol(const std::string& name) {
-    auto it = symbols.find(name);
-    if (it == symbols.end()) {
-        std::cerr << "Erreur : le symbole '" << name << "' n'existe pas." << std::endl;
-        exit(1);
+SymbolInfo& SymbolTable::resolveSymbol(const std::string& name) {
+    ensureActiveScope();
+
+    // Cherche du scope le plus interne (back) vers le plus externe (front)
+    for (int i = static_cast<int>(scopes.size()) - 1; i >= 0; i--) {
+        auto it = scopes[i].find(name);
+        if (it != scopes[i].end()) {
+            return *it->second;
+        }
     }
-    return it->second;
+    std::cerr << "Erreur : le symbole '" << name << "' n'existe pas." << std::endl;
+    exit(1);
+    throw std::runtime_error("unreachable");
 }
 
-int SymbolTable::getOffset(const std::string& name) {
-    return getSymbol(name).index;
+SymbolInfo& SymbolTable::getStorageSymbol(const std::string& storageName) {
+    auto it = storageSymbols.find(storageName);
+    if (it != storageSymbols.end()) {
+        return *it->second;
+    }
+
+    std::cerr << "Erreur : le symbole interne '" << storageName << "' n'existe pas." << std::endl;
+    exit(1);
+    throw std::runtime_error("unreachable");
+}
+
+int SymbolTable::getOffset(const std::string& storageName) {
+    return getStorageSymbol(storageName).index;
 }
 
 std::string SymbolTable::newTemp(const std::string& type) {
     std::string tmpName = "!tmp" + std::to_string(tempCounter++);
-    addSymbol(tmpName, type);
-    symbols[tmpName].used = true; // Les temporaires sont toujours considérés utilisés
-    return tmpName;
+    SymbolInfo& info = addSymbol(tmpName, type);
+    info.used = true; // Les temporaires sont toujours considérés utilisés
+    return info.storageName;
 }
 
 void SymbolTable::checkUnusedVariables() const {
-    for (const auto& pair : symbols) {
-        // Ignorer les temporaires internes
-        if (pair.first[0] == '!') continue;
-
-        if (!pair.second.used) {
-            std::cerr << "Avertissement : la variable '" << pair.first
+    for (const auto& symbol : ownedSymbols) {
+        if (!symbol->sourceName.empty() && symbol->sourceName[0] == '!') continue;
+        if (!symbol->used) {
+            std::cerr << "Avertissement : la variable '" << symbol->sourceName
                       << "' a été déclarée mais n'est pas utilisée." << std::endl;
         }
     }
