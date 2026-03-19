@@ -168,3 +168,8 @@ Ce script :
 - ANTLR4 (runtime C++)
 - GCC (pour l'assemblage et le linkage)
 - Python 3 (pour les tests)
+
+
+//plus d'infos sur les erreurs dans le read me
+//ecriver ce qui change entre notre hexanome comparé à un compilo classique et celui des autres, ce qui chages vraiment
+//spécifier les messages d'erreurs et de warning
