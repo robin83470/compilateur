@@ -28,9 +28,9 @@ lvalue
 
 rhs :
     ('+'|'-'|'!') rhs # Expr_moinsunaire
-    | '' rhs # Expr_deref
+    | '*' rhs # Expr_deref
     | BAND lvalue # Expr_addrof
-    | rhs (''|'/'|'%') rhs # Expr_multdiv
+    | rhs ('*'|'/'|'%') rhs # Expr_multdiv
     | rhs ('+'|'-') rhs # Expr_plusmoins
     | rhs (CMPLE|CMPGE|CMPLT|CMPGT) rhs # Expr_comparison
     | rhs (CMPEQ|CMPNE) rhs # Expr_equality
