@@ -253,21 +253,6 @@ antlrcpp::Any IRVisitor::visitExpr_equality(ifccParser::Expr_equalityContext *ct
     return tmp;
 }
 
-antlrcpp::Any IRVisitor::visitExpr_equality(ifccParser::Expr_equalityContext* ctx) {
-    std::string lhs = std::any_cast<std::string>(visit(ctx->rhs(0)));
-    std::string rhs = std::any_cast<std::string>(visit(ctx->rhs(1)));
-    std::string tmp = currentCFG->newTemp();
-    auto* bloc = currentCFG->getCurrentBasicBloc();
-
-    std::string op = ctx->children[1]->getText();
-    if (op == "==") {
-        bloc->addInstruction(new IRInstrCmp(bloc, tmp, lhs, rhs, IRInstrCmp::EQ));
-    } else {
-        bloc->addInstruction(new IRInstrCmp(bloc, tmp, lhs, rhs, IRInstrCmp::NEQ));
-    }
-    return tmp;
-}
-
 antlrcpp::Any IRVisitor::visitExpr_and(ifccParser::Expr_andContext* ctx) {
     std::string lhs = std::any_cast<std::string>(visit(ctx->rhs(0)));
     std::string rhs = std::any_cast<std::string>(visit(ctx->rhs(1)));
@@ -438,27 +423,4 @@ antlrcpp::Any IRVisitor::visitExpr_putchar(ifccParser::Expr_putcharContext* ctx)
     std::string tmp = currentCFG->newTemp();
     bloc->addInstruction(new IRInstrPutchar(bloc, tmp, arg));
     return tmp;
-}
-antlrcpp::Any IRVisitor::visitExpr_funcCall(ifccParser::Expr_funcCallContext* ctx) {
-    std::string funcName = ctx->ID()->getText();
-    std::vector<std::string> args;
-
-    if (ctx->rhsList()) {
-        auto argList = std::any_cast<std::vector<std::string>>(visit(ctx->rhsList()));
-        args = argList;
-    }
-
-    std::string tmp = currentCFG->newTemp();
-    auto* bloc = currentCFG->getCurrentBasicBloc();
-    bloc->addInstruction(new IRInstrCall(bloc, tmp, funcName, args));
-    return tmp;
-}
-
-antlrcpp::Any IRVisitor::visitRhsList(ifccParser::RhsListContext* ctx) {
-    std::vector<std::string> args;
-    for (auto* rhs : ctx->rhs()) {
-        std::string arg = std::any_cast<std::string>(visit(rhs));
-        args.push_back(arg);
-    }
-    return args;
 }
