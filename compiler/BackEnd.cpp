@@ -83,7 +83,11 @@ void X86BackEnd::generateEpilogue(std::ostream& out) {
 }
 
 void ARMBackEnd::generateEpilogue(std::ostream& out) {
-    out << ".epilogue:\n";
+    std::string funcName = cfg->getBlocs()[0]->getLabel();
+    if (funcName.size() > 6 && funcName.substr(funcName.size() - 6) == "_entry") {
+        funcName = funcName.substr(0, funcName.size() - 6);
+    }
+    out << "." << funcName << "_exit:\n";
 
     int offsetRetval = cfg->getSymbolTable()->getOffset("!retval");
     arm_codegen::emitLoadWFromOffset(out, offsetRetval, "w0");
