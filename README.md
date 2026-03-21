@@ -130,6 +130,8 @@ Ce script :
 - `if (...) { ... }`
 - `if (...) { ... } else if (...) { ... } else { ... }`
 - `while (...) { ... }`
+- `break;`
+- `continue;`
 
 ### Entrées / sorties standard
 - `getchar()` : lecture d'un caractère depuis l'entrée standard, avec retour `int`
@@ -158,7 +160,7 @@ Ce script :
 - Pas d'appels de fonctions génériques
 - Seuls les builtins `getchar()` et `putchar(...)` sont pris en charge pour l'instant
 - Pas de tableaux, pointeurs, structures
-- Pas de `for`, `do ... while`, `switch`, `break`, `continue`
+- Pas de `for`, `do ... while`, `switch`
 - Pas d'opérateurs logiques court-circuit (`&&`, `||`)
 - `putchar` ne prend pas encore en charge une expression arithmétique générale comme argument
 
