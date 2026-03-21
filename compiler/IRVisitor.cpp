@@ -376,7 +376,7 @@ antlrcpp::Any IRVisitor::visitWhile_stmt(ifccParser::While_stmtContext* ctx) {
     currentCFG->setCurrentBasicBloc(bodyBloc);
     loopStack.push_back({condBloc, endBloc});
 
-    visit(ctx->body_stmt());
+    visit(ctx->block());
 
     loopStack.pop_back();
     if (currentCFG->getCurrentBasicBloc()->getExitTrue() == nullptr &&
@@ -405,23 +405,21 @@ antlrcpp::Any IRVisitor::visitIf_elsifelse(ifccParser::If_elsifelseContext *ctx)
     std::vector<IRBasicBloc*> thenBlocs;
     for (size_t i = 0; i < nConds; i++) {
         thenBlocs.push_back(
-            currentCFG->addBasicBloc(".then_" + std::to_string(ifId) + "_" + std::to_string(i))
+        currentCFG->addBasicBlocUnique(".then_")
         );
     }
 
     std::vector<IRBasicBloc*> nextTestBlocs;
     for (size_t i = 1; i < nConds; i++) {
-        nextTestBlocs.push_back(
-            currentCFG->addBasicBloc(".test_" + std::to_string(ifId) + "_" + std::to_string(i))
-        );
+        nextTestBlocs.push_back(currentCFG->addBasicBlocUnique(".test_"));
     }
 
     IRBasicBloc* elseBloc = nullptr;
     if (hasElse) {
-        elseBloc = currentCFG->addBasicBloc(".else_" + std::to_string(ifId));
+        elseBloc = currentCFG->addBasicBlocUnique(".else_");
     }
 
-    IRBasicBloc* exitBloc = currentCFG->addBasicBloc(".if_exit_" + std::to_string(ifId));
+    IRBasicBloc* exitBloc = currentCFG->addBasicBlocUnique(".if_exit_");
 
     for (size_t i = 0; i < nConds; i++) {
         currentCFG->setCurrentBasicBloc(currentTestBloc);

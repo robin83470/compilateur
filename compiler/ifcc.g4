@@ -9,8 +9,7 @@ function : 'int' ID '(' paramList? ')' '{' stmt* '}'
 
 paramList : 'int' ID (',' 'int' ID)* ;
 
-stmt : return_stmt | declaration_stmt | assign_stmt | while_stmt | if_stmt | expr_stmt | break_stmt | continue_stmt | empty_stmt | block;
-body_stmt : return_stmt | declaration_stmt | assign_stmt | while_stmt | expr_stmt | break_stmt | continue_stmt | empty_stmt | block;
+stmt : return_stmt | declaration_stmt | assign_stmt | while_stmt | if_stmt | break_stmt | continue_stmt | empty_stmt | block;
 
 empty_stmt : ';' ;
 expr_stmt : rhs ';' ;
@@ -20,7 +19,7 @@ declarator : pointer_prefix? ID (EQUAL rhs)? ;
 pointer_prefix : '*' pointer_prefix? ;
 declaration_stmt : 'int' declarator (',' declarator)* ';' ;
 assign_stmt : lvalue EQUAL rhs ';' ;
-while_stmt : WHILE '(' rhs ')' body_stmt ;
+while_stmt : WHILE '(' rhs ')' block ;
 break_stmt : BREAK ';' ;
 continue_stmt : CONTINUE ';' ;
 
@@ -31,7 +30,9 @@ CONTINUE : 'continue' ;
 
 block : '{' stmt* '}' ;
 
-if_stmt: 'if' '(' rhs ')' block ('else' 'if' '(' rhs ')' block)* ('else' block)? #if_elsifelse ;
+ELSEIF : 'else' [ \t\r\n]+ 'if' ;
+
+if_stmt: 'if' '(' rhs ')' block (ELSEIF '(' rhs ')' block)* ('else' block)? #if_elsifelse ;
 
 lvalue
     : ID # Lvalue_id
