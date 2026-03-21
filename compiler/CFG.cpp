@@ -102,19 +102,17 @@ std::string IRControlFlowGraph::newTemp(const std::string& type) {
 }
 
 void IRControlFlowGraph::genX86(std::ostream& out) const {
+    // Parcourir les blocs et appeler genX86() sur chacun
+    // On exclut le bloc exit car le BackEnd le gère
     for (const auto* bloc : blocs) {
-        const auto& lbl = bloc->getLabel();
-        if (lbl == ".epilogue") continue;
-        if (lbl.size() >= 5 && lbl.substr(lbl.size() - 5) == "_exit") continue;
+        if (bloc->getLabel().find("_exit") != std::string::npos) continue;
         bloc->genX86(out);
     }
 }
 
 void IRControlFlowGraph::genARM(std::ostream& out) const {
     for (const auto* bloc : blocs) {
-        const auto& lbl = bloc->getLabel();
-        if (lbl == ".epilogue") continue;
-        if (lbl.size() >= 5 && lbl.substr(lbl.size() - 5) == "_exit") continue;
+        if (bloc->getLabel().find("_exit") != std::string::npos) continue;
         bloc->genARM(out);
     }
 }
