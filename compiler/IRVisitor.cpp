@@ -376,12 +376,13 @@ antlrcpp::Any IRVisitor::visitWhile_stmt(ifccParser::While_stmtContext* ctx) {
     currentCFG->setCurrentBasicBloc(bodyBloc);
     loopStack.push_back({condBloc, endBloc});
 
-    for (auto stmt : ctx->block()->stmt()) {
-        visit(stmt);
-    }
+    visit(ctx->body_stmt());
 
     loopStack.pop_back();
-    currentCFG->getCurrentBasicBloc()->setExitTrue(condBloc);
+    if (currentCFG->getCurrentBasicBloc()->getExitTrue() == nullptr &&
+        currentCFG->getCurrentBasicBloc()->getExitFalse() == nullptr) {
+        currentCFG->getCurrentBasicBloc()->setExitTrue(condBloc);
+    }
 
     currentCFG->setCurrentBasicBloc(endBloc);
 
@@ -403,21 +404,24 @@ antlrcpp::Any IRVisitor::visitIf_elsifelse(ifccParser::If_elsifelseContext *ctx)
 
     std::vector<IRBasicBloc*> thenBlocs;
     for (size_t i = 0; i < nConds; i++) {
-        thenBlocs.push_back(currentCFG->addBasicBlocUnique(".then_"));
+        thenBlocs.push_back(
+            currentCFG->addBasicBloc(".then_" + std::to_string(ifId) + "_" + std::to_string(i))
+        );
     }
 
     std::vector<IRBasicBloc*> nextTestBlocs;
     for (size_t i = 1; i < nConds; i++) {
-        falseBlocs.push_back(currentCFG->addBasicBlocUnique(".test_"));
+        nextTestBlocs.push_back(
+            currentCFG->addBasicBloc(".test_" + std::to_string(ifId) + "_" + std::to_string(i))
+        );
     }
 
     IRBasicBloc* elseBloc = nullptr;
-    if (nBlocks > nConds) {
-        elseBloc = currentCFG->addBasicBlocUnique(".else");
+    if (hasElse) {
+        elseBloc = currentCFG->addBasicBloc(".else_" + std::to_string(ifId));
     }
 
-
-    IRBasicBloc* exitBloc = currentCFG->addBasicBlocUnique(".if_exit");
+    IRBasicBloc* exitBloc = currentCFG->addBasicBloc(".if_exit_" + std::to_string(ifId));
 
     for (size_t i = 0; i < nConds; i++) {
         currentCFG->setCurrentBasicBloc(currentTestBloc);
@@ -465,7 +469,6 @@ antlrcpp::Any IRVisitor::visitIf_elsifelse(ifccParser::If_elsifelseContext *ctx)
     currentCFG->setCurrentBasicBloc(exitBloc);
     return 0;
 }
-
 
 
 antlrcpp::Any IRVisitor::visitExpr_getchar(ifccParser::Expr_getcharContext* ctx) {
