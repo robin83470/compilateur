@@ -1,4 +1,3 @@
-// test_priority.c
 #include <stdio.h>
 
 int main() {

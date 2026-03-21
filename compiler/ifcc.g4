@@ -4,13 +4,14 @@ axiom : prog EOF ;
 
 prog : function* ;
 
-function : 'int' ID '(' paramList? ')' '{' stmt* '}' 
+function : 'int' ID '(' paramList? ')' '{' stmt* '}'
          | 'int' 'main' '(' ')' '{' stmt* '}' ;
 
 paramList : 'int' ID (',' 'int' ID)* ;
 
-stmt : return_stmt | declaration_stmt | assign_stmt | while_stmt | if_stmt | expr_stmt ;
+stmt : return_stmt | declaration_stmt | assign_stmt | while_stmt | if_stmt | expr_stmt | break_stmt | continue_stmt | empty_stmt | block;
 
+empty_stmt : ';' ;
 expr_stmt : rhs ';' ;
 return_stmt : RETURN rhs ';' ;
 
@@ -18,13 +19,20 @@ declarator : pointer_prefix? ID (EQUAL rhs)? ;
 pointer_prefix : '*' pointer_prefix? ;
 declaration_stmt : 'int' declarator (',' declarator)* ';' ;
 assign_stmt : lvalue EQUAL rhs ';' ;
+while_stmt : WHILE '(' rhs ')' block ;
+break_stmt : BREAK ';' ;
+continue_stmt : CONTINUE ';' ;
 
-while_stmt : WHILE '(' rhs ')' '{' stmt* '}' ;
-WHILE : 'while' ; 
+
+WHILE : 'while' ;
+BREAK : 'break' ;
+CONTINUE : 'continue' ;
 
 block : '{' stmt* '}' | stmt ;
 
-if_stmt: 'if' '(' rhs ')' block ('else' 'if' '(' rhs ')' block)* ('else' block)? #if_elsifelse ;
+ELSEIF : 'else' [ \t\r\n]+ 'if' ;
+
+if_stmt: 'if' '(' rhs ')' block (ELSEIF '(' rhs ')' block)* ('else' block)? #if_elsifelse ;
 
 lvalue
     : ID # Lvalue_id

@@ -31,36 +31,36 @@ antlrcpp::Any IRVisitor::visitProg(ifccParser::ProgContext* ctx) {
 
 antlrcpp::Any IRVisitor::visitFunction(ifccParser::FunctionContext* ctx) {
     std::string funcName = ctx->ID() ? ctx->ID()->getText() : "main";
-    
+
     // === CRÉER UNE NOUVELLE SYMBOL TABLE POUR CETTE FONCTION ===
     SymbolTable* oldSymbolTable = symbolTable;
     symbolTable = new SymbolTable();
-    
+
     // === CRÉER UN NOUVEAU CFG AVEC LA NOUVELLE SYMBOL TABLE ===
     IRControlFlowGraph* oldCFG = currentCFG;
     currentCFG = new IRControlFlowGraph(symbolTable);
-    
+
     // === INITIALISER LE CFG ===
     currentCFG->addBasicBloc(funcName + "_entry");
     currentCFG->setCurrentBasicBloc(currentCFG->getBlocs()[0]);
-    
+
     symbolTable->addSymbol("!retval");
     epilogueBloc = currentCFG->addBasicBloc("." + funcName + "_exit");
-    
+
     // === AJOUTER LES PARAMÈTRES ===
     if (ctx->paramList()) {
         auto* paramList = ctx->paramList();
         size_t numParams = paramList->ID().size();
-        
+
         for (size_t i = 0; i < numParams; i++) {
             std::string paramName = paramList->ID(i)->getText();
             symbolTable->addSymbol(paramName);
-            
+
             auto* bloc = currentCFG->getCurrentBasicBloc();
             bloc->addInstruction(new IRInstrGetParam(bloc, paramName, i));
         }
     }
-    
+
     // === VISITER LE CORPS ===
     for (auto* stmt : ctx->stmt()) {
         visit(stmt);
@@ -69,9 +69,13 @@ antlrcpp::Any IRVisitor::visitFunction(ifccParser::FunctionContext* ctx) {
     // === RESTAURER L'ANCIENNE STATE ===
     symbolTable = oldSymbolTable;
     currentCFG = oldCFG;
-    
+
     return 0;
 }
+IRBasicBloc* IRVisitor::createDeadBlock(const std::string& prefix) {
+    return currentCFG->addBasicBlocUnique(prefix);
+}
+
 antlrcpp::Any IRVisitor::visitReturn_stmt(ifccParser::Return_stmtContext* ctx) {
     std::string tmp = std::any_cast<std::string>(visit(ctx->rhs()));
     auto* bloc = currentCFG->getCurrentBasicBloc();
@@ -81,8 +85,7 @@ antlrcpp::Any IRVisitor::visitReturn_stmt(ifccParser::Return_stmtContext* ctx) {
     bloc->setExitTrue(epilogueBloc);
 
     // Créer un nouveau bloc pour le code mort après le return
-    static int afterReturnCount = 0;
-    auto* deadBloc = currentCFG->addBasicBloc(".after_return" + std::to_string(afterReturnCount++));
+    auto* deadBloc = createDeadBlock(".after_return");
     currentCFG->setCurrentBasicBloc(deadBloc);
 
     return 0;
@@ -133,6 +136,32 @@ antlrcpp::Any IRVisitor::visitLvalue_deref(ifccParser::Lvalue_derefContext* ctx)
 
 antlrcpp::Any IRVisitor::visitLvalue_parenthese(ifccParser::Lvalue_parentheseContext* ctx) {
     return visit(ctx->lvalue());
+}
+
+antlrcpp::Any IRVisitor::visitBreak_stmt(ifccParser::Break_stmtContext* ctx) {
+
+    if (loopStack.empty()) {
+        throw std::runtime_error("`break` used outside of a loop");
+    }
+
+    auto* bloc = currentCFG->getCurrentBasicBloc();
+    bloc->setExitTrue(loopStack.back().breakNextBlock);
+
+    currentCFG->setCurrentBasicBloc(createDeadBlock(".after_break"));
+    return 0;
+}
+
+antlrcpp::Any IRVisitor::visitContinue_stmt(ifccParser::Continue_stmtContext* ctx) {
+
+    if (loopStack.empty()) {
+        throw std::runtime_error("`continue` used outside of a loop");
+    }
+
+    auto* bloc = currentCFG->getCurrentBasicBloc();
+    bloc->setExitTrue(loopStack.back().continueNextBlock);
+
+    currentCFG->setCurrentBasicBloc(createDeadBlock(".after_continue"));
+    return 0;
 }
 
 // ─── Visiteurs d'expressions ───────────────────────────────────────
@@ -330,9 +359,9 @@ antlrcpp::Any IRVisitor::visitWhile_stmt(ifccParser::While_stmtContext* ctx) {
 
     IRBasicBloc* entryBloc = currentCFG->getCurrentBasicBloc();
 
-    IRBasicBloc* condBloc = currentCFG->addBasicBloc("while_cond");
-    IRBasicBloc* bodyBloc = currentCFG->addBasicBloc("while_body");
-    IRBasicBloc* endBloc  = currentCFG->addBasicBloc("after_while");
+    IRBasicBloc* condBloc = currentCFG->addBasicBlocUnique("while_cond");
+    IRBasicBloc* bodyBloc = currentCFG->addBasicBlocUnique("while_body");
+    IRBasicBloc* endBloc  = currentCFG->addBasicBlocUnique("after_while");
 
     entryBloc->setExitTrue(condBloc);
 
@@ -345,12 +374,15 @@ antlrcpp::Any IRVisitor::visitWhile_stmt(ifccParser::While_stmtContext* ctx) {
     condBloc->setExitFalse(endBloc);
 
     currentCFG->setCurrentBasicBloc(bodyBloc);
+    loopStack.push_back({condBloc, endBloc});
 
-    for(auto stmt : ctx->stmt()){
-        visit(stmt);
+    visit(ctx->block());
+
+    loopStack.pop_back();
+    if (currentCFG->getCurrentBasicBloc()->getExitTrue() == nullptr &&
+        currentCFG->getCurrentBasicBloc()->getExitFalse() == nullptr) {
+        currentCFG->getCurrentBasicBloc()->setExitTrue(condBloc);
     }
-
-    bodyBloc->setExitTrue(condBloc);
 
     currentCFG->setCurrentBasicBloc(endBloc);
 
@@ -373,23 +405,21 @@ antlrcpp::Any IRVisitor::visitIf_elsifelse(ifccParser::If_elsifelseContext *ctx)
     std::vector<IRBasicBloc*> thenBlocs;
     for (size_t i = 0; i < nConds; i++) {
         thenBlocs.push_back(
-            currentCFG->addBasicBloc(".then_" + std::to_string(ifId) + "_" + std::to_string(i))
+        currentCFG->addBasicBlocUnique(".then_")
         );
     }
 
     std::vector<IRBasicBloc*> nextTestBlocs;
     for (size_t i = 1; i < nConds; i++) {
-        nextTestBlocs.push_back(
-            currentCFG->addBasicBloc(".test_" + std::to_string(ifId) + "_" + std::to_string(i))
-        );
+        nextTestBlocs.push_back(currentCFG->addBasicBlocUnique(".test_"));
     }
 
     IRBasicBloc* elseBloc = nullptr;
     if (hasElse) {
-        elseBloc = currentCFG->addBasicBloc(".else_" + std::to_string(ifId));
+        elseBloc = currentCFG->addBasicBlocUnique(".else_");
     }
 
-    IRBasicBloc* exitBloc = currentCFG->addBasicBloc(".if_exit_" + std::to_string(ifId));
+    IRBasicBloc* exitBloc = currentCFG->addBasicBlocUnique(".if_exit_");
 
     for (size_t i = 0; i < nConds; i++) {
         currentCFG->setCurrentBasicBloc(currentTestBloc);
@@ -439,7 +469,6 @@ antlrcpp::Any IRVisitor::visitIf_elsifelse(ifccParser::If_elsifelseContext *ctx)
 }
 
 
-
 antlrcpp::Any IRVisitor::visitExpr_getchar(ifccParser::Expr_getcharContext* ctx) {
     std::string tmp = currentCFG->newTemp();
     auto* bloc = currentCFG->getCurrentBasicBloc();
@@ -474,16 +503,15 @@ antlrcpp::Any IRVisitor::visitExpr_putchar(ifccParser::Expr_putcharContext* ctx)
 antlrcpp::Any IRVisitor::visitExpr_funcCall(ifccParser::Expr_funcCallContext* ctx) {
     std::string funcName = ctx->ID()->getText();
     std::vector<std::string> args;
-    
     if (ctx->rhsList()) {
         auto rhsListResult = visit(ctx->rhsList());
         args = std::any_cast<std::vector<std::string>>(rhsListResult);
     }
-    
+
     std::string dest = currentCFG->newTemp();
     auto* bloc = currentCFG->getCurrentBasicBloc();
     bloc->addInstruction(new IRInstrCall(bloc, dest, funcName, args));
-    
+
     return dest;
 }
 

@@ -97,22 +97,28 @@ IRBasicBloc* IRControlFlowGraph::addBasicBloc(const std::string& label) {
     return bloc;
 }
 
+IRBasicBloc* IRControlFlowGraph::addBasicBlocUnique(const std::string& prefix) {
+    return addBasicBloc(prefix + std::to_string(nextBlocNumber++));
+}
+
 std::string IRControlFlowGraph::newTemp(const std::string& type) {
     return symbolTable->newTemp(type);
 }
 
 void IRControlFlowGraph::genX86(std::ostream& out) const {
-    // Parcourir les blocs et appeler genX86() sur chacun
-    // On exclut le bloc exit car le BackEnd le gère
     for (const auto* bloc : blocs) {
-        if (bloc->getLabel().find("_exit") != std::string::npos) continue;
+        const auto& lbl = bloc->getLabel();
+        if (lbl == ".epilogue") continue;
+        if (lbl.size() >= 5 && lbl.substr(lbl.size() - 5) == "_exit") continue;
         bloc->genX86(out);
     }
 }
 
 void IRControlFlowGraph::genARM(std::ostream& out) const {
     for (const auto* bloc : blocs) {
-        if (bloc->getLabel().find("_exit") != std::string::npos) continue;
+        const auto& lbl = bloc->getLabel();
+        if (lbl == ".epilogue") continue;
+        if (lbl.size() >= 5 && lbl.substr(lbl.size() - 5) == "_exit") continue;
         bloc->genARM(out);
     }
 }
