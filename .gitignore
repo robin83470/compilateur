@@ -14,3 +14,5 @@ ifcc
 config.mk
 ifcc-test-output/
 compiler/test_ir.dSYM/
+
+test_results.csv

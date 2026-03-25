@@ -9,7 +9,7 @@ function : 'int' ID '(' paramList? ')' '{' stmt* '}'
 
 paramList : 'int' ID (',' 'int' ID)* ;
 
-stmt : return_stmt | declaration_stmt | assign_stmt | while_stmt | if_stmt | break_stmt | continue_stmt | empty_stmt | block;
+stmt : return_stmt | declaration_stmt | assign_stmt | while_stmt | if_stmt | break_stmt | continue_stmt | empty_stmt | block ;
 
 empty_stmt : ';' ;
 expr_stmt : rhs ';' ;
@@ -30,9 +30,8 @@ CONTINUE : 'continue' ;
 
 block : '{' stmt* '}' ;
 
-ELSEIF : 'else' [ \t\r\n]+ 'if' ;
-
-if_stmt: 'if' '(' rhs ')' block (ELSEIF '(' rhs ')' block)* ('else' block)? #if_elsifelse ;
+// Allow 'else if' by using parser-level sequencing; no special token needed.
+if_stmt: 'if' '(' rhs ')' stmt ('else' stmt)? ;
 
 lvalue
     : ID # Lvalue_id

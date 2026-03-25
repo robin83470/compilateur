@@ -593,7 +593,7 @@ void IRInstrPutchar::genX86(std::ostream& out) const {
     int offsetSrc = parentBloc->getCFG()->getSymbolTable()->getOffset(src);
     int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
     out << "    movl " << offsetSrc << "(%rbp), %edi\n"; // on met l'argument dans %edi
-    out << "    callq _putchar\n"; // appel à putchar
+    out << "    callq putchar\n"; // appel à putchar
     out << "    movl %eax, " << offsetDest << "(%rbp)\n"; // stocker la valeur de retour
 }
 
@@ -617,7 +617,7 @@ void IRInstrGetchar::printDebug(std::ostream& out) const {
 }
 
 void IRInstrGetchar::genX86(std::ostream& out) const {
-    out << "    callq _getchar\n"; // appel à getchar
+    out << "    callq getchar\n"; // appel à getchar
     int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
     out << "    movl %eax, " << offsetDest << "(%rbp)\n"; // stocker la valeur de retour
 }
