@@ -142,16 +142,15 @@ int main(int argn, const char **argv)
         IRVisitor irVisitor(&symbolTableVisitor.symbolTable);
         cfg = irVisitor.buildIr(tree);
 
-        for (auto& [funcCFG, funcSymTable] : irVisitor.getAllFunctions()) {
-            unique_ptr<BackEnd> backend;
-            if (target == TargetArch::X86_64) {
-                backend = make_unique<X86BackEnd>(funcCFG);
-            } else {
-                backend = make_unique<ARMBackEnd>(funcCFG);
-            }
-            backend->generateCode(cout);
+        unique_ptr<BackEnd> backend;
+        if (target == TargetArch::X86_64) {
+            backend = make_unique<X86BackEnd>(cfg);
+        } else {
+            backend = make_unique<ARMBackEnd>(cfg);
         }
-    } catch (const exception& e) {
+        backend->generateCode(cout);
+    }
+    catch (const exception& e) {
         delete cfg;
         cerr << "error: " << e.what() << endl;
         return 1;

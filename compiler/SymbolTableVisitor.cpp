@@ -211,6 +211,8 @@ void SymbolTableVisitor::checkVariableUsed(const std::string& varName) {
 
 antlrcpp::Any SymbolTableVisitor::visitExpr_funcCall(ifccParser::Expr_funcCallContext* ctx) {
     // Vérifier les types des arguments
+    std::string funcName = ctx->ID()->getText();
+    symbolTable.getSymbol(funcName).used = true; //Vérifier que la fonction est déclarée
     if (ctx->rhsList()) {
         for (auto* rhs : ctx->rhsList()->rhs()) {
             visit(rhs);

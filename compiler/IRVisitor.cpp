@@ -29,49 +29,7 @@ antlrcpp::Any IRVisitor::visitProg(ifccParser::ProgContext* ctx) {
     return 0;
 }
 
-antlrcpp::Any IRVisitor::visitFunction(ifccParser::FunctionContext* ctx) {
-    std::string funcName = ctx->ID() ? ctx->ID()->getText() : "main";
 
-    // === CRÉER UNE NOUVELLE SYMBOL TABLE POUR CETTE FONCTION ===
-    SymbolTable* oldSymbolTable = symbolTable;
-    symbolTable = new SymbolTable();
-
-    // === CRÉER UN NOUVEAU CFG AVEC LA NOUVELLE SYMBOL TABLE ===
-    IRControlFlowGraph* oldCFG = currentCFG;
-    currentCFG = new IRControlFlowGraph(symbolTable);
-
-    // === INITIALISER LE CFG ===
-    currentCFG->addBasicBloc(funcName + "_entry");
-    currentCFG->setCurrentBasicBloc(currentCFG->getBlocs()[0]);
-
-    symbolTable->addSymbol("!retval");
-    epilogueBloc = currentCFG->addBasicBloc("." + funcName + "_exit");
-
-    // === AJOUTER LES PARAMÈTRES ===
-    if (ctx->paramList()) {
-        auto* paramList = ctx->paramList();
-        size_t numParams = paramList->ID().size();
-
-        for (size_t i = 0; i < numParams; i++) {
-            std::string paramName = paramList->ID(i)->getText();
-            symbolTable->addSymbol(paramName);
-
-            auto* bloc = currentCFG->getCurrentBasicBloc();
-            bloc->addInstruction(new IRInstrGetParam(bloc, paramName, i));
-        }
-    }
-
-    // === VISITER LE CORPS ===
-    for (auto* stmt : ctx->stmt()) {
-        visit(stmt);
-    }
-    allFunctions.push_back({currentCFG, symbolTable});
-    // === RESTAURER L'ANCIENNE STATE ===
-    symbolTable = oldSymbolTable;
-    currentCFG = oldCFG;
-
-    return 0;
-}
 IRBasicBloc* IRVisitor::createDeadBlock(const std::string& prefix) {
     return currentCFG->addBasicBlocUnique(prefix);
 }
@@ -500,6 +458,49 @@ antlrcpp::Any IRVisitor::visitExpr_putchar(ifccParser::Expr_putcharContext* ctx)
     return tmp;
 }
 
+antlrcpp::Any IRVisitor::visitFunction(ifccParser::FunctionContext* ctx) {
+    std::string funcName = ctx->ID() ? ctx->ID()->getText() : "main";
+
+    // === CRÉER UNE NOUVELLE SYMBOL TABLE POUR CETTE FONCTION ===
+    SymbolTable* oldSymbolTable = symbolTable;
+    symbolTable = new SymbolTable();
+
+    // === CRÉER UN NOUVEAU CFG AVEC LA NOUVELLE SYMBOL TABLE ===
+    IRControlFlowGraph* oldCFG = currentCFG;
+    currentCFG = new IRControlFlowGraph(symbolTable);
+
+    // === INITIALISER LE CFG ===
+    currentCFG->addBasicBloc(funcName + "_entry");
+    currentCFG->setCurrentBasicBloc(currentCFG->getBlocs()[0]);
+
+    symbolTable->addSymbol("!retval");
+    epilogueBloc = currentCFG->addBasicBloc("." + funcName + "_exit");
+    size_t numParams = 0;
+    // === AJOUTER LES PARAMÈTRES ===
+    if (ctx->paramList()) {
+        auto* paramList = ctx->paramList();
+        size_t numParams = paramList->ID().size();
+
+        for (size_t i = 0; i < numParams; i++) {
+            std::string paramName = paramList->ID(i)->getText();
+            symbolTable->addSymbol(paramName);
+
+            auto* bloc = currentCFG->getCurrentBasicBloc();
+            bloc->addInstruction(new IRInstrGetParam(bloc, paramName, i));
+        }
+    }
+
+    for (auto* stmt : ctx->stmt()) {
+        visit(stmt);
+    }
+    allFunctions.push_back({funcName, numParams, currentCFG, symbolTable});
+    // === RESTAURER L'ANCIENNE STATE ===
+    symbolTable = oldSymbolTable;
+    currentCFG = oldCFG;
+
+    return 0;
+}
+
 antlrcpp::Any IRVisitor::visitExpr_funcCall(ifccParser::Expr_funcCallContext* ctx) {
     std::string funcName = ctx->ID()->getText();
     std::vector<std::string> args;
@@ -508,6 +509,18 @@ antlrcpp::Any IRVisitor::visitExpr_funcCall(ifccParser::Expr_funcCallContext* ct
         args = std::any_cast<std::vector<std::string>>(rhsListResult);
     }
 
+    bool isDeclared = 0;
+
+    for (const auto& func : allFunctions) {
+        if (func.name == funcName) {
+            if (args.size() != func.numParams) {
+                throw std::runtime_error("Error: function " + funcName + " expects " + 
+                    std::to_string(func.numParams) + " arguments, but " + 
+                    std::to_string(args.size()) + " were provided.");
+            }
+            break; //TODO: look what happen if there are 2 definitions
+        }
+    }
     std::string dest = currentCFG->newTemp();
     auto* bloc = currentCFG->getCurrentBasicBloc();
     bloc->addInstruction(new IRInstrCall(bloc, dest, funcName, args));

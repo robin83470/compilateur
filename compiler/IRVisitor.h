@@ -17,10 +17,6 @@ public:
     IRControlFlowGraph* buildIr(antlr4::tree::ParseTree* tree);
 
 
-    const std::vector<std::pair<IRControlFlowGraph*, SymbolTable*>>& getAllFunctions() const {
-        return allFunctions;
-    }
-
     // ── Visiteurs ANTLR ─────────────────────────────────────────
     virtual antlrcpp::Any visitProg(ifccParser::ProgContext* ctx) override;
     virtual antlrcpp::Any visitFunction(ifccParser::FunctionContext* ctx) override;
@@ -56,7 +52,13 @@ public:
     virtual antlrcpp::Any visitExpr_funcCall(ifccParser::Expr_funcCallContext* ctx) override;
     virtual antlrcpp::Any visitRhsList(ifccParser::RhsListContext* ctx) override;
 private:
-    std::vector<std::pair<IRControlFlowGraph*, SymbolTable*>> allFunctions;
+    struct FunctionData {
+        std::string name;
+        size_t numParams;  // Ajouter le nombre de paramètres
+        IRControlFlowGraph* cfg;
+        SymbolTable* symbolTable;
+    };
+    std::vector<FunctionData> allFunctions;
     struct LoopContext {
         IRBasicBloc* continueNextBlock; // bloc où sauter après le continue
         IRBasicBloc* breakNextBlock;    // bloc où sauter après le break
