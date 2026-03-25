@@ -132,8 +132,16 @@ Ce script :
 - `if (...) { ... }`
 - `if (...) { ... } else if (...) { ... } else { ... }`
 - `while (...) { ... }`
+- `switch (...) { case ...: ... default: ... }`
 - `break;`
 - `continue;`
+
+### Détails sur `switch`
+- Valeurs de `case` supportées : constantes entières et constantes caractère
+- On vérifie bien sémantiquement l'unicité des `case`
+- `default` optionnel
+- Le passage au `case` suivant pris en charge si aucun `break` n'est présent
+- `break` permet de sortir du `switch`
 
 ### Entrées / sorties standard
 - `getchar()` : lecture d'un caractère depuis l'entrée standard, avec retour `int`
@@ -162,7 +170,7 @@ Ce script :
 - Pas d'appels de fonctions génériques
 - Seuls les builtins `getchar()` et `putchar(...)` sont pris en charge pour l'instant
 - Pas de tableaux, pointeurs, structures
-- Pas de `for`, `do ... while`, `switch`
+- Pas de `for`, `do ... while`
 - Pas d'opérateurs logiques court-circuit (`&&`, `||`)
 - `putchar` ne prend pas encore en charge une expression arithmétique générale comme argument
 
@@ -172,8 +180,3 @@ Ce script :
 - ANTLR4 (runtime C++)
 - GCC (pour l'assemblage et le linkage)
 - Python 3 (pour les tests)
-
-
-//plus d'infos sur les erreurs dans le read me
-//ecriver ce qui change entre notre hexanome comparé à un compilo classique et celui des autres, ce qui chages vraiment
-//spécifier les messages d'erreurs et de warning
