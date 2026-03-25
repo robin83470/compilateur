@@ -30,9 +30,8 @@ CONTINUE : 'continue' ;
 
 block : '{' stmt* '}' ;
 
-ELSEIF : 'else' [ \t\r\n]+ 'if' ;
-
-if_stmt: 'if' '(' rhs ')' block (ELSEIF '(' rhs ')' block)* ('else' block)? #if_elsifelse ;
+// Allow 'else if' by using parser-level sequencing; no special token needed.
+if_stmt: 'if' '(' rhs ')' stmt ('else' stmt)? ;
 
 lvalue
     : ID # Lvalue_id
