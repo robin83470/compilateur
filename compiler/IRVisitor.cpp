@@ -458,72 +458,37 @@ antlrcpp::Any IRVisitor::visitWhile_stmt(ifccParser::While_stmtContext* ctx) {
 
 
 
-antlrcpp::Any IRVisitor::visitIf_elsifelse(ifccParser::If_elsifelseContext *ctx)
+antlrcpp::Any IRVisitor::visitIf_stmt(ifccParser::If_stmtContext *ctx)
 {
     int ifId = ifCounter++;
 
     IRBasicBloc* currentTestBloc = currentCFG->getCurrentBasicBloc();
 
-    size_t nConds = ctx->rhs().size();
-    size_t nBlocks = ctx->block().size();
-    bool hasElse = (nBlocks > nConds);
+    // Nouvelle grammaire: une seule condition, une seule instruction/ bloc then, optionnellement un else
+    bool hasElse = (ctx->stmt().size() > 1);
 
-    std::vector<IRBasicBloc*> thenBlocs;
-    for (size_t i = 0; i < nConds; i++) {
-        thenBlocs.push_back(
-        currentCFG->addBasicBlocUnique(".then_")
-        );
-    }
-
-    std::vector<IRBasicBloc*> nextTestBlocs;
-    for (size_t i = 1; i < nConds; i++) {
-        nextTestBlocs.push_back(currentCFG->addBasicBlocUnique(".test_"));
-    }
-
-    IRBasicBloc* elseBloc = nullptr;
-    if (hasElse) {
-        elseBloc = currentCFG->addBasicBlocUnique(".else_");
-    }
-
+    IRBasicBloc* thenBloc = currentCFG->addBasicBlocUnique(".then_");
+    IRBasicBloc* elseBloc = hasElse ? currentCFG->addBasicBlocUnique(".else_") : nullptr;
     IRBasicBloc* exitBloc = currentCFG->addBasicBlocUnique(".if_exit_");
 
-    for (size_t i = 0; i < nConds; i++) {
-        currentCFG->setCurrentBasicBloc(currentTestBloc);
+    // Test
+    std::string testVarName = std::any_cast<std::string>(visit(ctx->rhs()));
+    currentTestBloc->setTestVarName(testVarName);
+    currentTestBloc->setExitTrue(thenBloc);
+    currentTestBloc->setExitFalse(hasElse ? elseBloc : exitBloc);
 
-        std::string testVarName = std::any_cast<std::string>(visit(ctx->rhs(i)));
-
-        IRBasicBloc* falseDest = nullptr;
-        if (i + 1 < nConds) {
-            falseDest = nextTestBlocs[i];
-        } else if (hasElse) {
-            falseDest = elseBloc;
-        } else {
-            falseDest = exitBloc;
-        }
-
-        currentTestBloc->setTestVarName(testVarName);
-        currentTestBloc->setExitTrue(thenBlocs[i]);
-        currentTestBloc->setExitFalse(falseDest);
-
-        // Bloc then / else-if
-        currentCFG->setCurrentBasicBloc(thenBlocs[i]);
-        visit(ctx->block(i));
-
-        // Ne relier à exit que si le bloc courant n'a pas déjà une sortie terminale
-        if (currentCFG->getCurrentBasicBloc()->getExitTrue() == nullptr &&
-            currentCFG->getCurrentBasicBloc()->getExitFalse() == nullptr) {
-            currentCFG->getCurrentBasicBloc()->setExitTrue(exitBloc);
-        }
-
-        if (i + 1 < nConds) {
-            currentTestBloc = nextTestBlocs[i];
-        }
+    // Then
+    currentCFG->setCurrentBasicBloc(thenBloc);
+    visit(ctx->stmt(0));
+    if (currentCFG->getCurrentBasicBloc()->getExitTrue() == nullptr &&
+        currentCFG->getCurrentBasicBloc()->getExitFalse() == nullptr) {
+        currentCFG->getCurrentBasicBloc()->setExitTrue(exitBloc);
     }
 
+    // Else (si présent)
     if (hasElse) {
         currentCFG->setCurrentBasicBloc(elseBloc);
-        visit(ctx->block(nBlocks - 1));
-
+        visit(ctx->stmt(1));
         if (currentCFG->getCurrentBasicBloc()->getExitTrue() == nullptr &&
             currentCFG->getCurrentBasicBloc()->getExitFalse() == nullptr) {
             currentCFG->getCurrentBasicBloc()->setExitTrue(exitBloc);
