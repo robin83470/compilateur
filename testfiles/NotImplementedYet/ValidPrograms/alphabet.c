@@ -1,4 +1,4 @@
-#include <stdio.h>
+
 int alphabet(int n)
 {
     char a;
