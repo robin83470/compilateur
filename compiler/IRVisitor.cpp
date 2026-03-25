@@ -1,26 +1,6 @@
 #include "IRVisitor.h"
 #include "IR.h"
 
-namespace {
-int parseCharLiteralValue(const std::string& text) {
-    if (text[1] == '\\') {
-        switch (text[2]) {
-            case 'n':
-                return '\n';
-            case 't':
-                return '\t';
-            case '\\':
-                return '\\';
-            case '\'':
-                return '\'';
-            default:
-                return text[2];
-        }
-    }
-    return text[1];
-}
-}
-
 IRVisitor::IRVisitor(SymbolTable* symbolTable)
     : symbolTable(symbolTable) {}
 
@@ -159,15 +139,13 @@ antlrcpp::Any IRVisitor::visitLvalue_parenthese(ifccParser::Lvalue_parentheseCon
 }
 
 antlrcpp::Any IRVisitor::visitBreak_stmt(ifccParser::Break_stmtContext* ctx) {
-    auto* bloc = currentCFG->getCurrentBasicBloc();
 
-    if (!switchBreakStack.empty()) {
-        bloc->setExitTrue(switchBreakStack.back());
-    } else if (!loopStack.empty()) {
-        bloc->setExitTrue(loopStack.back().breakNextBlock);
-    } else {
-        throw std::runtime_error("`break` used outside of a loop or switch");
+    if (loopStack.empty()) {
+        throw std::runtime_error("`break` used outside of a loop");
     }
+
+    auto* bloc = currentCFG->getCurrentBasicBloc();
+    bloc->setExitTrue(loopStack.back().breakNextBlock);
 
     currentCFG->setCurrentBasicBloc(createDeadBlock(".after_break"));
     return 0;
@@ -488,131 +466,6 @@ antlrcpp::Any IRVisitor::visitIf_elsifelse(ifccParser::If_elsifelseContext *ctx)
 
     currentCFG->setCurrentBasicBloc(exitBloc);
     return 0;
-}
-
-antlrcpp::Any IRVisitor::visitSwitch_stmt(ifccParser::Switch_stmtContext* ctx) {
-
-    IRBasicBloc* entryBloc = currentCFG->getCurrentBasicBloc();
-
-    // Evaluation de l'expression contenue dans le switch
-    std::string switchTmp = std::any_cast<std::string>(visit(ctx->rhs()));
-
-    // Bloc de sortie du switch
-    IRBasicBloc* endSwitch = currentCFG->addBasicBlocUnique("after_switch");
-
-    // Blocs pour faire les comparaisons
-    std::vector<IRBasicBloc*> testBlocs;
-
-    // Blocs pour les codes à exécuter pour chaque case
-    std::vector<IRBasicBloc*> caseBlocs;
-
-    for (size_t i = 0; i < ctx->switch_case().size(); ++i) {
-        testBlocs.push_back(currentCFG->addBasicBlocUnique("switch_test"));
-        caseBlocs.push_back(currentCFG->addBasicBlocUnique("switch_case"));
-    }
-
-    // Bloc default si il existe
-    IRBasicBloc* defaultBloc = nullptr;
-    if (ctx->switch_default() != nullptr) {
-        defaultBloc = currentCFG->addBasicBlocUnique("switch_default");
-    }
-
-    if (!testBlocs.empty()) {
-        entryBloc->setExitTrue(testBlocs.front());
-    } else if (defaultBloc != nullptr) {
-        entryBloc->setExitTrue(defaultBloc);
-    } else {
-        entryBloc->setExitTrue(endSwitch);
-    }
-
-    switchBreakStack.push_back(endSwitch);
-
-    // Chaque bloc de test vérifie si la valeur du switch correspond à un case
-    for (size_t i = 0; i < testBlocs.size(); ++i) {
-        currentCFG->setCurrentBasicBloc(testBlocs[i]);
-        auto* switchCase = ctx->switch_case(i);
-        std::string caseValueTmp = std::any_cast<std::string>(visit(switchCase->switch_value()));
-
-        // cmpTmp vaut 1 si switchTmp == caseValueTmp, sinon 0
-        std::string cmpTmp = currentCFG->newTemp();
-        testBlocs[i]->addInstruction(new IRInstrCmp(testBlocs[i], cmpTmp, switchTmp, caseValueTmp, IRInstrCmp::EQ));
-        testBlocs[i]->setTestVarName(cmpTmp);
-
-        // Si la comparaison est vraie, on exécute le code du case
-        testBlocs[i]->setExitTrue(caseBlocs[i]);
-
-        IRBasicBloc* falseDest = nullptr;
-
-        // Est-ce qu'on a encore un bloc de test après le bloc actuel
-        if (i + 1 < testBlocs.size()) {
-            // Si le test du case courant échoue et qu’il y a un autre case après on teste le suivant.
-            falseDest = testBlocs[i + 1];
-        } else if (defaultBloc != nullptr) {
-            // Si aucun case n'a matché jusque-là on va sur default s'il existe
-            falseDest = defaultBloc;
-        } else {
-            // Sinon c'est qu'aucune case ne correspond et on sort du switch
-            falseDest = endSwitch;
-        }
-        testBlocs[i]->setExitFalse(falseDest);
-    }
-
-    // Chaque bloc case contient les instructions du case correspondant
-    for (size_t i = 0; i < caseBlocs.size(); ++i) {
-        currentCFG->setCurrentBasicBloc(caseBlocs[i]);
-
-        for (auto* stmt : ctx->switch_case(i)->stmt()) {
-            visit(stmt);
-        }
-
-        // Le dernier bloc du case peut être différent si des sous-blocs ont été créés
-        IRBasicBloc* tailBloc = currentCFG->getCurrentBasicBloc();
-        if (tailBloc->getExitTrue() == nullptr && tailBloc->getExitFalse() == nullptr) {
-            if (i + 1 < caseBlocs.size()) {
-                // Si on n'a pas de break ni de return, on continue dans le case suivant
-                tailBloc->setExitTrue(caseBlocs[i + 1]);
-            } else if (defaultBloc != nullptr) {
-                // Une fois qu'on atteint le dernier case on continue dans default s'il existe
-                tailBloc->setExitTrue(defaultBloc);
-            } else {
-                // Sinon c'est qu'on a fini le switch
-                tailBloc->setExitTrue(endSwitch);
-            }
-        }
-    }
-
-    if (defaultBloc != nullptr) {
-        // Le bloc default est atteint si aucun case ne correspond ou si le dernier case tombe dedans sans break
-        currentCFG->setCurrentBasicBloc(defaultBloc);
-        for (auto* stmt : ctx->switch_default()->stmt()) {
-            visit(stmt);
-        }
-
-        IRBasicBloc* tailBloc = currentCFG->getCurrentBasicBloc();
-        if (tailBloc->getExitTrue() == nullptr && tailBloc->getExitFalse() == nullptr) {
-            tailBloc->setExitTrue(endSwitch); // Default mène à la fin du switch.
-        }
-    }
-
-    switchBreakStack.pop_back();
-    currentCFG->setCurrentBasicBloc(endSwitch);
-
-    return 0;
-}
-
-antlrcpp::Any IRVisitor::visitSwitch_value(ifccParser::Switch_valueContext* ctx) {
-    int val = 0;
-
-    if (ctx->CONST() != nullptr) {
-        val = std::stoi(ctx->CONST()->getText());
-    } else {
-        val = parseCharLiteralValue(ctx->CHARCONST()->getText());
-    }
-
-    std::string tmp = currentCFG->newTemp();
-    auto* bloc = currentCFG->getCurrentBasicBloc();
-    bloc->addInstruction(new IRInstrConst(bloc, tmp, val));
-    return tmp;
 }
 
 
