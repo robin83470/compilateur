@@ -139,13 +139,15 @@ antlrcpp::Any IRVisitor::visitLvalue_parenthese(ifccParser::Lvalue_parentheseCon
 }
 
 antlrcpp::Any IRVisitor::visitBreak_stmt(ifccParser::Break_stmtContext* ctx) {
-
-    if (loopStack.empty()) {
-        throw std::runtime_error("`break` used outside of a loop");
-    }
-
     auto* bloc = currentCFG->getCurrentBasicBloc();
-    bloc->setExitTrue(loopStack.back().breakNextBlock);
+
+    if (!switchBreakStack.empty()) {
+        bloc->setExitTrue(switchBreakStack.back());
+    } else if (!loopStack.empty()) {
+        bloc->setExitTrue(loopStack.back().breakNextBlock);
+    } else {
+        throw std::runtime_error("`break` used outside of a loop or switch");
+    }
 
     currentCFG->setCurrentBasicBloc(createDeadBlock(".after_break"));
     return 0;
