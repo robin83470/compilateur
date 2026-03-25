@@ -1,7 +1,6 @@
 #include "SymbolTableVisitor.h"
 #include <cstdlib>
 #include <iostream>
-#include <set>
 #include <stdexcept>
 
 namespace {
@@ -20,24 +19,13 @@ std::string normalizeType(const std::string& type) {
 bool isIntType(const std::string& type) {
     return normalizeType(type) == "int";
 }
-
-int parseCharLiteral(const std::string& text) {
-    if (text[1] != '\\') return text[1];
-    if (text[2] == 'n') return '\n';
-    if (text[2] == 't') return '\t';
-    if (text[2] == '\\') return '\\';
-    if (text[2] == '\'') return '\'';
-    return text[2];
-}
-
-
 }
 
 antlrcpp::Any SymbolTableVisitor::visitProg(ifccParser::ProgContext *ctx) {
     // Visite tous les enfants
     visitChildren(ctx);
     symbolTable.checkUnusedVariables();
-
+    
     return 0;
 }
 
@@ -275,37 +263,4 @@ std::string SymbolTableVisitor::removePointerLevel(const std::string& type, cons
 
     normalized.pop_back();
     return normalized;
-}
-
-antlrcpp::Any SymbolTableVisitor::visitSwitch_stmt(ifccParser::Switch_stmtContext *ctx) {
-    std::string switchType = std::any_cast<std::string>(visit(ctx->rhs()));
-    requireType(switchType, "int", "expression pour switch");
-
-    std::set<int> seenCaseValues;
-    for (auto* switchCase : ctx->switch_case()) {
-        int caseValue = std::any_cast<int>(visit(switchCase->switch_value()));
-        if (seenCaseValues.count(caseValue) > 0) {
-            throw std::runtime_error("Erreur : cette valeur de case est déjà rencontrée dans le switch");
-        }
-        seenCaseValues.insert(caseValue);
-        visit(switchCase);
-    }
-
-    if (ctx->switch_default() != nullptr) {
-        visit(ctx->switch_default());
-    }
-
-    return 0;
-}
-
-antlrcpp::Any SymbolTableVisitor::visitSwitch_value(ifccParser::Switch_valueContext *ctx) {
-    if (ctx->CONST() != nullptr) {
-        return std::stoi(ctx->CONST()->getText());
-    }
-
-    if (ctx->CHARCONST() != nullptr) {
-        return parseCharLiteral(ctx->CHARCONST()->getText());
-    }
-
-    throw std::runtime_error("Valeur de case non supportee.");
 }
