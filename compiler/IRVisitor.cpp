@@ -1,6 +1,26 @@
 #include "IRVisitor.h"
 #include "IR.h"
 
+namespace {
+int parseCharLiteralValue(const std::string& text) {
+    if (text[1] == '\\') {
+        switch (text[2]) {
+            case 'n':
+                return '\n';
+            case 't':
+                return '\t';
+            case '\\':
+                return '\\';
+            case '\'':
+                return '\'';
+            default:
+                return text[2];
+        }
+    }
+    return text[1];
+}
+}
+
 IRVisitor::IRVisitor(SymbolTable* symbolTable)
     : symbolTable(symbolTable) {}
 
@@ -468,6 +488,21 @@ antlrcpp::Any IRVisitor::visitIf_elsifelse(ifccParser::If_elsifelseContext *ctx)
 
     currentCFG->setCurrentBasicBloc(exitBloc);
     return 0;
+}
+
+antlrcpp::Any IRVisitor::visitSwitch_value(ifccParser::Switch_valueContext* ctx) {
+    int val = 0;
+
+    if (ctx->CONST() != nullptr) {
+        val = std::stoi(ctx->CONST()->getText());
+    } else {
+        val = parseCharLiteralValue(ctx->CHARCONST()->getText());
+    }
+
+    std::string tmp = currentCFG->newTemp();
+    auto* bloc = currentCFG->getCurrentBasicBloc();
+    bloc->addInstruction(new IRInstrConst(bloc, tmp, val));
+    return tmp;
 }
 
 

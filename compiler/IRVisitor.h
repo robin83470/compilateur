@@ -34,6 +34,8 @@ public:
     virtual antlrcpp::Any visitLvalue_parenthese(ifccParser::Lvalue_parentheseContext* ctx) override;
     virtual antlrcpp::Any visitBreak_stmt(ifccParser::Break_stmtContext* ctx) override;
     virtual antlrcpp::Any visitContinue_stmt(ifccParser::Continue_stmtContext* ctx) override;
+    virtual antlrcpp::Any visitSwitch_stmt(ifccParser::Switch_stmtContext* ctx) override;
+    virtual antlrcpp::Any visitSwitch_value(ifccParser::Switch_valueContext* ctx) override;
 
     virtual antlrcpp::Any visitExpr_const(ifccParser::Expr_constContext* ctx) override;
     virtual antlrcpp::Any visitExpr_char(ifccParser::Expr_charContext* ctx) override;
@@ -69,4 +71,5 @@ private:
     SymbolTable* symbolTable;
     int ifCounter = 0;
     std::vector<LoopContext> loopStack; // pile des contextes de boucles pour gérer les boucles
+    std::vector<IRBasicBloc*> switchBreakStack;
 };
