@@ -23,6 +23,14 @@ enum class TargetArch {
     ARM64
 };
 
+TargetArch getDefaultTarget() {
+#if defined(__aarch64__) || defined(__arm64__)
+    return TargetArch::ARM64;
+#else
+    return TargetArch::X86_64;
+#endif
+}
+
 void printUsage(const char* programName) {
     cerr << "usage: " << programName << " [--target <x86_64|arm64>] path/to/file.c" << endl;
 }
@@ -42,7 +50,7 @@ bool parseTarget(const string& value, TargetArch& target) {
 
 int main(int argn, const char **argv)
 {
-    TargetArch target = TargetArch::X86_64;
+    TargetArch target = getDefaultTarget();
     string inputPath;
 
     for (int i = 1; i < argn; ++i) {

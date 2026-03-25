@@ -21,7 +21,9 @@ Le compilateur prend en entrée un fichier source C et génère du code assemble
 - `x86_64` : Intel 64 bits
 - `arm64` : Apple Silicon (M series)
 
-Par défaut, la cible est `x86_64`.
+Par défaut, la cible suit l'architecture de la machine hôte:
+- `x86_64` sur une machine Intel/AMD 64 bits
+- `arm64` sur une machine Apple Silicon
 
 ### Syntaxe
 
@@ -68,7 +70,7 @@ Le script `ifcc-test.py` permet de lancer automatiquement les tests sur tous les
 python3 ifcc-test.py testfiles/
 ```
 
-Par défaut, si `--target` n'est pas fourni, la suite de tests utilise `x86_64`.
+Par défaut, si `--target` n'est pas fourni, la suite de tests utilise l'architecture de la machine hôte.
 
 Vous pouvez préciser la cible testée :
 

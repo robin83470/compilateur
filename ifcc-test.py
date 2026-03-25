@@ -15,6 +15,17 @@ import shutil
 import sys
 import subprocess
 
+def default_target():
+    machine = os.uname().machine.lower()
+    if machine in ['arm64', 'aarch64']:
+        return 'arm64'
+    return 'x86_64'
+
+def gcc_driver(target):
+    if sys.platform == 'darwin':
+        return f'gcc -arch {target}'
+    return 'gcc'
+
 def normalize_target(value):
     if value in ['x86_64', 'arm64']:
         return value
@@ -93,8 +104,9 @@ argparser.add_argument('-d','--debug',action="count",default=0,
 argparser.add_argument('-S',action = "store_true", help='single-file mode: compile from C to assembly, but do not assemble')
 argparser.add_argument('-c',action = "store_true", help='single-file mode: compile/assemble to machine code, but do not link')
 argparser.add_argument('-o','--output',metavar = 'OUTPUTNAME', help='single-file mode: write output to that file')
-argparser.add_argument('--target', type=normalize_target, default='x86_64',
-                       help='target architecture passed to ifcc (x86_64 or arm64). Default: x86_64')
+default_target_value = default_target()
+argparser.add_argument('--target', type=normalize_target, default=default_target_value,
+                       help=f'target architecture passed to ifcc (x86_64 or arm64). Default: host architecture ({default_target_value})')
 
 args=argparser.parse_args()
 
@@ -111,10 +123,11 @@ if args.debug:
     print("ifcc-test.py: "+os.path.dirname(__file__))
 
 ifcc_cmd=f'{pld_base_dir}/compiler/ifcc --target {args.target}'
+gcc_cmd=gcc_driver(args.target)
 
 # cleanup stale output directory
 if os.path.isdir(f'{pld_base_dir}/ifcc-test-output'):
-    run_command(f'rm -rf {pld_base_dir}/ifcc-test-output')
+    subprocess.run(['rm', '-rf', f'{pld_base_dir}/ifcc-test-output'], check=False)
 
 # Ensure that the `ifcc` executable itself is up-to-date
 makestatus=run_command(f'cd {pld_base_dir}/compiler; make --question ifcc')
@@ -169,7 +182,7 @@ if args.S or args.c or args.output:
         ifccstatus=run_command(f'{ifcc_cmd} {inputfilename} > {asmname}')
         if ifccstatus: # let's show error messages on screen
             exit(run_command(f'{ifcc_cmd} {inputfilename}',toscreen=True))
-        exit(run_command(f'gcc -c -o {args.output} {asmname}',toscreen=True))
+        exit(run_command(f'{gcc_cmd} -c -o {args.output} {asmname}',toscreen=True))
 
     else: # produce an executable
         if args.output[-2:] in [".o",".c",".s"]:
@@ -179,7 +192,7 @@ if args.S or args.c or args.output:
         ifccstatus=run_command(f'{ifcc_cmd} {inputfilename} > {asmname}')
         if ifccstatus:
             exit(run_command(f'{ifcc_cmd} {inputfilename}', toscreen=True))
-        exit(run_command(f'gcc -o {args.output} {asmname}'))
+        exit(run_command(f'{gcc_cmd} -o {args.output} {asmname}'))
 
     # we should never end up here
     print("unexpected error. please report this bug.")
@@ -289,10 +302,10 @@ for jobname in jobs:
     os.chdir(jobname)
 
     ## Reference compiler = GCC
-    gccstatus=run_command("gcc -S -o asm-gcc.s input.c", "gcc-compile.txt")
+    gccstatus=run_command(f"{gcc_cmd} -S -o asm-gcc.s input.c", "gcc-compile.txt")
     if gccstatus == 0:
         # test-case is a valid program. we should run it
-        gccstatus=run_command("gcc -o exe-gcc asm-gcc.s", "gcc-link.txt")
+        gccstatus=run_command(f"{gcc_cmd} -o exe-gcc asm-gcc.s", "gcc-link.txt")
     if gccstatus == 0: # then both compile and link stage went well
         stdin_data=open("input.stdin").read() if os.path.exists("input.stdin") else None
         exegccstatus=run_command("./exe-gcc", "gcc-execute.txt", stdin_data=stdin_data)
@@ -321,7 +334,7 @@ for jobname in jobs:
         continue
     else:
         ## ifcc accepts to compile valid program -> let's link it
-        ldstatus=run_command("gcc -o exe-ifcc asm-ifcc.s", "ifcc-link.txt")
+        ldstatus=run_command(f"{gcc_cmd} -o exe-ifcc asm-ifcc.s", "ifcc-link.txt")
         if ldstatus:
             print("TEST FAIL (your compiler produces incorrect assembly)")
             all_ok=False
