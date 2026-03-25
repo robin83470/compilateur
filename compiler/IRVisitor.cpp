@@ -100,8 +100,14 @@ antlrcpp::Any IRVisitor::visitDeclaration_stmt(ifccParser::Declaration_stmtConte
 
 antlrcpp::Any IRVisitor::visitDeclarator(ifccParser::DeclaratorContext* ctx) {
     std::string varName = ctx->ID()->getText();
+    int pointerDepth = 0;
 
-    symbolTable->addSymbol(varName);
+    if (ctx->pointer_prefix() != nullptr) {
+        pointerDepth = std::any_cast<int>(visit(ctx->pointer_prefix()));
+    }
+
+    std::string varType = "int" + std::string(pointerDepth, '*');
+    symbolTable->addSymbol(varName, varType);
 
     if (ctx->EQUAL()) {
         std::string tmp = std::any_cast<std::string>(visit(ctx->rhs()));
@@ -112,26 +118,46 @@ antlrcpp::Any IRVisitor::visitDeclarator(ifccParser::DeclaratorContext* ctx) {
 }
 
 antlrcpp::Any IRVisitor::visitPointer_prefix(ifccParser::Pointer_prefixContext* ctx) {
-    // The symbol table visitor already resolves declaration types.
-    // IR generation does not need pointer depth at this stage.
-    return 0;
+    if (ctx->pointer_prefix() == nullptr) {
+    return 1;
+}
+
+    int subDepth = std::any_cast<int>(visit(ctx->pointer_prefix()));
+    return subDepth + 1;
 }
 
 antlrcpp::Any IRVisitor::visitAssign_stmt(ifccParser::Assign_stmtContext* ctx) {
-    std::string varName = std::any_cast<std::string>(visit(ctx->lvalue()));
+    std::string lhsDesc = std::any_cast<std::string>(visit(ctx->lvalue()));
     std::string tmp = std::any_cast<std::string>(visit(ctx->rhs()));
     auto* bloc = currentCFG->getCurrentBasicBloc();
-    bloc->addInstruction(new IRInstrCopy(bloc, varName, tmp));
+
+    if (lhsDesc.rfind("var:", 0) == 0) {
+        std::string varName = lhsDesc.substr(4);
+        bloc->addInstruction(new IRInstrCopy(bloc, varName, tmp));
+    } else if (lhsDesc.rfind("ptr:", 0) == 0) {
+        std::string addrPtr = lhsDesc.substr(4);
+        bloc->addInstruction(new IRInstrStoreIndirect(bloc, tmp, addrPtr));
+    } else {
+        throw std::runtime_error("Unexpected lvalue descriptor in assignment: " + lhsDesc);
+    }
+
     return 0;
 }
 
 antlrcpp::Any IRVisitor::visitLvalue_id(ifccParser::Lvalue_idContext* ctx) {
-    return ctx->ID()->getText();
+    return std::string("var:") + ctx->ID()->getText();
 }
 
 antlrcpp::Any IRVisitor::visitLvalue_deref(ifccParser::Lvalue_derefContext* ctx) {
-    (void)ctx;
-    throw std::runtime_error("Pointer dereference assignment is not implemented in IR yet.");
+    std::string innerDesc = std::any_cast<std::string>(visit(ctx->lvalue()));
+
+    // Common case: *p where p is a variable containing an address.
+    if (innerDesc.rfind("var:", 0) == 0) {
+        return std::string("ptr:") + innerDesc.substr(4);
+    }
+
+    // Nested dereference (e.g. **pp) needs pointer-sized indirect loads.
+    throw std::runtime_error("Nested pointer lvalue dereference is not implemented in IR yet.");
 }
 
 antlrcpp::Any IRVisitor::visitLvalue_parenthese(ifccParser::Lvalue_parentheseContext* ctx) {
@@ -283,13 +309,31 @@ antlrcpp::Any IRVisitor::visitExpr_parenthese(ifccParser::Expr_parentheseContext
 }
 
 antlrcpp::Any IRVisitor::visitExpr_addrof(ifccParser::Expr_addrofContext* ctx) {
-    (void)ctx;
-    throw std::runtime_error("Address-of operator is not implemented in IR yet.");
+    std::string lvalueDesc = std::any_cast<std::string>(visit(ctx->lvalue()));
+
+    // &x -> Crée un pointeur temporaire
+    if (lvalueDesc.rfind("var:", 0) == 0) {
+        std::string varName = lvalueDesc.substr(4);
+        std::string tmpPtr = currentCFG->newTemp("int*");
+        auto* bloc = currentCFG->getCurrentBasicBloc();
+        bloc->addInstruction(new IRInstrAddrOf(bloc, tmpPtr, varName));
+        return tmpPtr;
+    }
+
+    // &*p == p
+    if (lvalueDesc.rfind("ptr:", 0) == 0) {
+        return lvalueDesc.substr(4);
+    }
+
+    throw std::runtime_error("Unexpected lvalue descriptor for address-of: " + lvalueDesc);
 }
 
 antlrcpp::Any IRVisitor::visitExpr_deref(ifccParser::Expr_derefContext* ctx) {
-    (void)ctx;
-    throw std::runtime_error("Pointer dereference expression is not implemented in IR yet.");
+    std::string addrPtr = std::any_cast<std::string>(visit(ctx->rhs()));
+    std::string tmp = currentCFG->newTemp();
+    auto* bloc = currentCFG->getCurrentBasicBloc();
+    bloc->addInstruction(new IRInstrLoadIndirect(bloc, tmp, addrPtr));
+    return tmp;
 }
 
 antlrcpp::Any IRVisitor::visitExpr_comparison(ifccParser::Expr_comparisonContext* ctx) {

@@ -91,6 +91,143 @@ void IRInstrCopy::genARM(std::ostream& out) const {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+//  IRInstrAddrOf : destPtr = &varName
+// ═══════════════════════════════════════════════════════════════════
+
+IRInstrAddrOf::IRInstrAddrOf(IRBasicBloc* parentBloc,
+                             const std::string& destPtr,
+                             const std::string& varName)
+    : IRInstruction(parentBloc), destPtr(destPtr), varName(varName) {}
+
+void IRInstrAddrOf::printDebug(std::ostream& out) const {
+    out << "  addrof " << destPtr << " " << varName << "\n";
+}
+
+void IRInstrAddrOf::genX86(std::ostream& out) const {
+    int offsetVar = parentBloc->getCFG()->getSymbolTable()->getOffset(varName);
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(destPtr);
+
+    out << "    leaq " << offsetVar << "(%rbp), %rax\n";
+    out << "    movq %rax, " << offsetDest << "(%rbp)\n";
+}
+
+void IRInstrAddrOf::genARM(std::ostream& out) const {
+    int offsetVar = parentBloc->getCFG()->getSymbolTable()->getOffset(varName);
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(destPtr);
+
+    // x9 = adresse de varName (x29 + offsetVar)
+    if (offsetVar >= 0 && offsetVar <= 4095) {
+        out << "    add x9, x29, #" << offsetVar << "\n";
+    } else if (offsetVar < 0 && -offsetVar <= 4095) {
+        out << "    sub x9, x29, #" << -offsetVar << "\n";
+    } else {
+        throw std::runtime_error("ARM stack offset out of supported range for addrof");
+    }
+
+    // On stocke le pointeur x9 dans destPtr (8 octets)
+    if (offsetDest >= -256 && offsetDest <= 255) {
+        out << "    stur x9, [x29, #" << offsetDest << "]\n";
+    } else if (offsetDest < 0 && -offsetDest <= 4095) {
+        out << "    sub x10, x29, #" << -offsetDest << "\n";
+        out << "    str x9, [x10]\n";
+    } else if (offsetDest > 0 && offsetDest <= 4095) {
+        out << "    add x10, x29, #" << offsetDest << "\n";
+        out << "    str x9, [x10]\n";
+    } else {
+        throw std::runtime_error("ARM stack offset out of supported range for store pointer");
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  IRInstrLoadIndirect
+// ═══════════════════════════════════════════════════════════════════
+
+IRInstrLoadIndirect::IRInstrLoadIndirect(IRBasicBloc* parentBloc,
+                                         const std::string& dest,
+                                         const std::string& addrPtr)
+    : IRInstruction(parentBloc), dest(dest), addrPtr(addrPtr) {}
+
+void IRInstrLoadIndirect::printDebug(std::ostream& out) const {
+    out << "  loadi " << dest << " " << addrPtr << "\n";
+}
+
+void IRInstrLoadIndirect::genX86(std::ostream& out) const {
+    int offsetAddr = parentBloc->getCFG()->getSymbolTable()->getOffset(addrPtr);
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+
+    // %rax = pointeur, puis lecture 32 bits pointée dans %ecx
+    out << "    movq " << offsetAddr << "(%rbp), %rax\n";
+    out << "    movl (%rax), %ecx\n";
+    out << "    movl %ecx, " << offsetDest << "(%rbp)\n";
+}
+
+void IRInstrLoadIndirect::genARM(std::ostream& out) const {
+    int offsetAddr = parentBloc->getCFG()->getSymbolTable()->getOffset(addrPtr);
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+
+    // x9 = pointeur chargé depuis la pile
+    if (offsetAddr >= -256 && offsetAddr <= 255) {
+        out << "    ldur x9, [x29, #" << offsetAddr << "]\n";
+    } else if (offsetAddr < 0 && -offsetAddr <= 4095) {
+        out << "    sub x10, x29, #" << -offsetAddr << "\n";
+        out << "    ldr x9, [x10]\n";
+    } else if (offsetAddr > 0 && offsetAddr <= 4095) {
+        out << "    add x10, x29, #" << offsetAddr << "\n";
+        out << "    ldr x9, [x10]\n";
+    } else {
+        throw std::runtime_error("ARM stack offset out of supported range for load pointer");
+    }
+
+    // On lit l'int pointé (32 bits) puis on le stocke dans dest
+    out << "    ldr w11, [x9]\n";
+    arm_codegen::emitStoreWToOffset(out, offsetDest, "w11");
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  IRInstrStoreIndirect
+// ═══════════════════════════════════════════════════════════════════
+IRInstrStoreIndirect::IRInstrStoreIndirect(IRBasicBloc* parentBloc,
+                                           const std::string& src,
+                                           const std::string& addrPtr)
+    : IRInstruction(parentBloc), src(src), addrPtr(addrPtr) {}
+
+void IRInstrStoreIndirect::printDebug(std::ostream& out) const {
+    out << "  storei " << addrPtr << " " << src << "\n";
+}
+
+void IRInstrStoreIndirect::genX86(std::ostream& out) const {
+    int offsetSrc = parentBloc->getCFG()->getSymbolTable()->getOffset(src);
+    int offsetAddr = parentBloc->getCFG()->getSymbolTable()->getOffset(addrPtr);
+
+    // %rax = pointeur destination, %ecx = valeur source (32 bits)
+    out << "    movq " << offsetAddr << "(%rbp), %rax\n";
+    out << "    movl " << offsetSrc << "(%rbp), %ecx\n";
+    out << "    movl %ecx, (%rax)\n";
+}
+
+void IRInstrStoreIndirect::genARM(std::ostream& out) const {
+    int offsetSrc = parentBloc->getCFG()->getSymbolTable()->getOffset(src);
+    int offsetAddr = parentBloc->getCFG()->getSymbolTable()->getOffset(addrPtr);
+
+    // x9 = pointeur destination
+    if (offsetAddr >= -256 && offsetAddr <= 255) {
+        out << "    ldur x9, [x29, #" << offsetAddr << "]\n";
+    } else if (offsetAddr < 0 && -offsetAddr <= 4095) {
+        out << "    sub x10, x29, #" << -offsetAddr << "\n";
+        out << "    ldr x9, [x10]\n";
+    } else if (offsetAddr > 0 && offsetAddr <= 4095) {
+        out << "    add x10, x29, #" << offsetAddr << "\n";
+        out << "    ldr x9, [x10]\n";
+    } else {
+        throw std::runtime_error("ARM stack offset out of supported range for load pointer");
+    }
+
+    // w11 = valeur source (32 bits), puis on écrit à l'adresse pointée
+    arm_codegen::emitLoadWFromOffset(out, offsetSrc, "w11");
+    out << "    str w11, [x9]\n";
+}
+
+// ═══════════════════════════════════════════════════════════════════
 //  IRInstrAdd
 // ═══════════════════════════════════════════════════════════════════
 IRInstrAdd::IRInstrAdd(IRBasicBloc* parentBloc,
