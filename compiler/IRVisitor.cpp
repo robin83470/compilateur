@@ -15,7 +15,7 @@ IRControlFlowGraph* IRVisitor::buildIr(antlr4::tree::ParseTree* tree) {
     epilogueBloc = currentCFG->addBasicBloc(".epilogue");
 
     // Revenir à .entry pour y mettre le code
-    currentCFG->setCurrentBasicBloc(currentCFG->getBlocs()[0]);
+    currentCFG->setCurrentBasicBloc(currentCFG->getBlocs()[0]); // ca revient à un IR vide
 
     visit(tree);
 
@@ -488,7 +488,7 @@ antlrcpp::Any IRVisitor::visitFunction(ifccParser::FunctionContext* ctx) {
     // === AJOUTER LES PARAMÈTRES ===
     if (ctx->paramList()) {
         auto* paramList = ctx->paramList();
-        size_t numParams = paramList->ID().size();
+        numParams = paramList->ID().size();
 
         for (size_t i = 0; i < numParams; i++) {
             std::string paramName = paramList->ID(i)->getText();

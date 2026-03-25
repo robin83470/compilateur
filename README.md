@@ -164,7 +164,8 @@ Ce script :
 - Pas de tableaux, pointeurs, structures
 - Pas de `for`, `do ... while`, `switch`
 - Pas d'opérateurs logiques court-circuit (`&&`, `||`)
-- `putchar` ne prend pas encore en charge une expression arithmétique générale comme argument
+- `putchar` ne prend pas encore en charge une expression arithmétique générale comme argument.
+- Les fonctions doivent contenir une valeur de retour. Dans le cas contraire, le programme ne compile pas.
 
 
 ## Dépendances

@@ -12,10 +12,16 @@
 //  3. On passe le CFG à un BackEnd pour générer l'assembleur
 class IRVisitor : public ifccBaseVisitor {
 public:
+    struct FunctionData {
+        std::string name;
+        size_t numParams;  // Ajouter le nombre de paramètres
+        IRControlFlowGraph* cfg;
+        SymbolTable* symbolTable;
+    };
+
     IRVisitor(SymbolTable* symbolTable);
 
     IRControlFlowGraph* buildIr(antlr4::tree::ParseTree* tree);
-
 
     // ── Visiteurs ANTLR ─────────────────────────────────────────
     virtual antlrcpp::Any visitProg(ifccParser::ProgContext* ctx) override;
@@ -51,13 +57,12 @@ public:
     virtual antlrcpp::Any visitExpr_putchar(ifccParser::Expr_putcharContext* ctx) override;
     virtual antlrcpp::Any visitExpr_funcCall(ifccParser::Expr_funcCallContext* ctx) override;
     virtual antlrcpp::Any visitRhsList(ifccParser::RhsListContext* ctx) override;
-private:
-    struct FunctionData {
-        std::string name;
-        size_t numParams;  // Ajouter le nombre de paramètres
-        IRControlFlowGraph* cfg;
-        SymbolTable* symbolTable;
+
+    
+    std::vector<FunctionData> getAllFunctions(){
+        return allFunctions;
     };
+private:
     std::vector<FunctionData> allFunctions;
     struct LoopContext {
         IRBasicBloc* continueNextBlock; // bloc où sauter après le continue

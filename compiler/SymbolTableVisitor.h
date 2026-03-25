@@ -7,7 +7,6 @@
 class SymbolTableVisitor : public ifccBaseVisitor {
     public:
         SymbolTable symbolTable;
-
         virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override;
         virtual antlrcpp::Any visitDeclaration_stmt(ifccParser::Declaration_stmtContext *ctx) override;
         virtual antlrcpp::Any visitDeclarator(ifccParser::DeclaratorContext *ctx) override;
@@ -35,9 +34,14 @@ class SymbolTableVisitor : public ifccBaseVisitor {
         virtual antlrcpp::Any visitExpr_putchar(ifccParser::Expr_putcharContext *ctx) override;
         virtual antlrcpp::Any visitExpr_funcCall(ifccParser::Expr_funcCallContext* ctx) override;
         virtual antlrcpp::Any visitFunction(ifccParser::FunctionContext* ctx) override;
+
+        std::vector<std::string> getknownFunction(){
+            return knownFunctions;
+        };
     private:
         void checkVariableUsed(const std::string& varName);
         void requireType(const std::string& actual, const std::string& expected, const std::string& where);
         std::string addPointerLevel(const std::string& type) const;
         std::string removePointerLevel(const std::string& type, const std::string& where) const;
+        std::vector<std::string> knownFunctions{};
 };

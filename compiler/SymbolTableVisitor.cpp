@@ -23,9 +23,13 @@ bool isIntType(const std::string& type) {
 
 antlrcpp::Any SymbolTableVisitor::visitProg(ifccParser::ProgContext *ctx) {
     // Visite tous les enfants
+    for (auto* func : ctx->function()) {
+        if (func->ID()) {
+            knownFunctions.push_back(func->ID()->getText());
+        }
+    }
     visitChildren(ctx);
     symbolTable.checkUnusedVariables();
-    
     return 0;
 }
 
@@ -212,7 +216,9 @@ void SymbolTableVisitor::checkVariableUsed(const std::string& varName) {
 antlrcpp::Any SymbolTableVisitor::visitExpr_funcCall(ifccParser::Expr_funcCallContext* ctx) {
     // Vérifier les types des arguments
     std::string funcName = ctx->ID()->getText();
-    symbolTable.getSymbol(funcName).used = true; //Vérifier que la fonction est déclarée
+    if (std::find(knownFunctions.begin(), knownFunctions.end(), funcName) == knownFunctions.end()) {
+        throw std::runtime_error("Erreur : la fonction '" + funcName + "' n'est pas déclarée.");
+    }
     if (ctx->rhsList()) {
         for (auto* rhs : ctx->rhsList()->rhs()) {
             visit(rhs);
@@ -224,7 +230,6 @@ antlrcpp::Any SymbolTableVisitor::visitExpr_funcCall(ifccParser::Expr_funcCallCo
 antlrcpp::Any SymbolTableVisitor::visitFunction(ifccParser::FunctionContext *ctx) {
     SymbolTable savedTable = symbolTable;  // sauvegarde
     symbolTable = SymbolTable{};           // table fraîche pour cette fonction
-
     if (ctx->paramList()) {
         auto* paramList = ctx->paramList();
         for (auto* id : paramList->ID()) {

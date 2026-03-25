@@ -134,23 +134,26 @@ int main(int argn, const char **argv)
         cerr << "Erreur lexicale" << endl;
         exit(1);
     }
-    IRControlFlowGraph* cfg = nullptr;
+    IRControlFlowGraph* cfg = nullptr; 
     try {
         SymbolTableVisitor symbolTableVisitor;
         symbolTableVisitor.visit(tree);
 
         IRVisitor irVisitor(&symbolTableVisitor.symbolTable);
-        cfg = irVisitor.buildIr(tree);
 
-        unique_ptr<BackEnd> backend;
+
+    irVisitor.buildIr(tree);
+
+    for (const auto& funcData : irVisitor.getAllFunctions()) {
+        unique_ptr<BackEnd> backend; // Ajout d'un cfg par fonction
         if (target == TargetArch::X86_64) {
-            backend = make_unique<X86BackEnd>(cfg);
+            backend = make_unique<X86BackEnd>(funcData.cfg);
         } else {
-            backend = make_unique<ARMBackEnd>(cfg);
+            backend = make_unique<ARMBackEnd>(funcData.cfg);
         }
         backend->generateCode(cout);
     }
-    catch (const exception& e) {
+    } catch (const exception& e) {
         delete cfg;
         cerr << "error: " << e.what() << endl;
         return 1;

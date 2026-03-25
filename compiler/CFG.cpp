@@ -1,6 +1,10 @@
 #include "CFG.h"
 #include "ArmCodegenUtils.h"
 
+
+int IRControlFlowGraph::nextBlocNumber = 0;
+
+
 // ═══════════════════════════════════════════════════════════════════
 //  IRBasicBloc
 // ═══════════════════════════════════════════════════════════════════
