@@ -9,7 +9,7 @@ function : 'int' ID '(' paramList? ')' '{' stmt* '}'
 
 paramList : 'int' ID (',' 'int' ID)* ;
 
-stmt : return_stmt | declaration_stmt | assign_stmt | while_stmt | if_stmt | break_stmt | continue_stmt | empty_stmt | block | expr_stmt ;
+stmt : return_stmt | declaration_stmt | assign_stmt | while_stmt | if_stmt | switch_stmt | break_stmt | continue_stmt | empty_stmt | block ;
 
 empty_stmt : ';' ;
 expr_stmt : rhs ';' ;
@@ -22,11 +22,18 @@ assign_stmt : lvalue EQUAL rhs ';' ;
 while_stmt : WHILE '(' rhs ')' block ;
 break_stmt : BREAK ';' ;
 continue_stmt : CONTINUE ';' ;
+switch_stmt : SWITCH '(' rhs ')' '{' switch_case* switch_default? '}' ;
+switch_case : CASE switch_value ':' stmt* ;
+switch_default : DEFAULT ':' stmt* ;
+switch_value : CONST | CHARCONST ;
 
 
 WHILE : 'while' ;
 BREAK : 'break' ;
 CONTINUE : 'continue' ;
+SWITCH : 'switch' ;
+CASE : 'case' ;
+DEFAULT : 'default' ;
 
 block : '{' stmt* '}' ;
 
