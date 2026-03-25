@@ -271,21 +271,23 @@ for inputfilename in inputfilenames:
     stdin_filename=inputfilename[:-2]+'.stdin'
     if os.path.isfile(stdin_filename):
         shutil.copyfile(stdin_filename,pld_base_dir+'/ifcc-test-output/'+subdirname+'/input.stdin')
-    jobs.append(subdirname)
+    jobs.append( (subdirname, inputfilename) )
 
 ## eliminate duplicate paths from the 'jobs' list
 unique_jobs=[]
-for j in jobs:
-    for d in unique_jobs:
+for j_tuple in jobs:
+    j = j_tuple[0]
+    for d_tuple in unique_jobs:
+        d = d_tuple[0]
         if os.path.samefile(pld_base_dir+'/ifcc-test-output/'+j,pld_base_dir+'/ifcc-test-output/'+d):
             break # and skip the 'else' branch
     else:
-        unique_jobs.append(j)
-jobs=sorted(unique_jobs)
+        unique_jobs.append(j_tuple)
+jobs=unique_jobs
 
 # debug: after deduplication
 if args.debug:
-    print("debug: list of test-cases after PREPARE step:"," ".join(jobs))
+    print("debug: list of test-cases after PREPARE step:"," ".join([j[0] for j in jobs]))
 
 ######################################################################################
 ## TEST step: actually compile/link/run each test-case with both compilers.
@@ -294,76 +296,119 @@ if args.debug:
 ##            otherwise, this is a fail.
 
 all_ok=True
+new_results = []
+target = args.target
 
-for jobname in jobs:
+for jobname, orig_filepath in jobs:
     os.chdir(f'{pld_base_dir}/ifcc-test-output')
 
     print('TEST-CASE: '+jobname)
     os.chdir(jobname)
 
+    test_name = os.path.basename(orig_filepath)[:-2] # remove .c
+
+    # Group is defined by the directory immediately after testfiles/
+    path_parts = os.path.normpath(orig_filepath).split(os.sep)
+    group = "Unknown"
+    if 'testfiles' in path_parts:
+        tf_idx = path_parts.index('testfiles')
+        group_dir = path_parts[tf_idx + 1] if tf_idx + 1 < len(path_parts) else ""
+        if group_dir == 'InvalidPrograms':
+            group = 'Invalid'
+        elif group_dir == 'ValidPrograms':
+            group = 'Valid'
+        elif group_dir == 'NotImplementedYet':
+            group = 'NotImplementedYet'
+
+    loop_gcc_cmd = gcc_driver(target)
+    loop_ifcc_cmd = f'{pld_base_dir}/compiler/ifcc --target {target}'
+
     ## Reference compiler = GCC
-    gccstatus=run_command(f"{gcc_cmd} -S -o asm-gcc.s input.c", "gcc-compile.txt")
+    gccstatus=run_command(f"{loop_gcc_cmd} -S -o asm-gcc-{target}.s input.c", f"gcc-compile-{target}.txt")
     if gccstatus == 0:
         # test-case is a valid program. we should run it
-        gccstatus=run_command(f"{gcc_cmd} -o exe-gcc asm-gcc.s", "gcc-link.txt")
+        gccstatus=run_command(f"{loop_gcc_cmd} -o exe-gcc-{target} asm-gcc-{target}.s", f"gcc-link-{target}.txt")
     if gccstatus == 0: # then both compile and link stage went well
         stdin_data=open("input.stdin").read() if os.path.exists("input.stdin") else None
-        exegccstatus=run_command("./exe-gcc", "gcc-execute.txt", stdin_data=stdin_data)
+        exegccstatus=run_command(f"./exe-gcc-{target}", f"gcc-execute-{target}.txt", stdin_data=stdin_data)
         if args.verbose >=2:
-            dumpfile("gcc-execute.txt")
+            dumpfile(f"gcc-execute-{target}.txt")
 
     ## IFCC compiler
-    ifccstatus=run_command(f'{ifcc_cmd} input.c > asm-ifcc.s', 'ifcc-compile.txt')
+    ifccstatus=run_command(f'{loop_ifcc_cmd} input.c > asm-ifcc-{target}.s', f'ifcc-compile-{target}.txt')
 
+    status_msg = "OK"
     if gccstatus != 0 and ifccstatus != 0:
-        ## ifcc correctly rejects invalid program -> test-case ok
-        print("TEST OK")
-        continue
+        status_msg = "OK"
     elif gccstatus != 0 and ifccstatus == 0:
-        ## ifcc wrongly accepts invalid program -> error
-        print("TEST FAIL (your compiler accepts an invalid program)")
+        status_msg = "FAIL (your compiler accepts an invalid program)"
         all_ok=False
-        continue
     elif gccstatus == 0 and ifccstatus != 0:
-        ## ifcc wrongly rejects valid program -> error
-        print("TEST FAIL (your compiler rejects a valid program)")
+        status_msg = "FAIL (your compiler rejects a valid program)"
         all_ok=False
         if args.verbose:
-            dumpfile("asm-ifcc.s")       # stdout of ifcc
-            dumpfile("ifcc-compile.txt") # stderr of ifcc
-        continue
+            dumpfile(f"asm-ifcc-{target}.s", quiet=True)       
+            dumpfile(f"ifcc-compile-{target}.txt", quiet=True) 
     else:
-        ## ifcc accepts to compile valid program -> let's link it
-        ldstatus=run_command(f"{gcc_cmd} -o exe-ifcc asm-ifcc.s", "ifcc-link.txt")
+        ldstatus=run_command(f"{loop_gcc_cmd} -o exe-ifcc-{target} asm-ifcc-{target}.s", f"ifcc-link-{target}.txt")
         if ldstatus:
-            print("TEST FAIL (your compiler produces incorrect assembly)")
+            status_msg = "FAIL (your compiler produces incorrect assembly)"
             all_ok=False
             if args.verbose:
-                dumpfile("asm-ifcc.s")
-                dumpfile("ifcc-link.txt")
-            continue
+                dumpfile(f"asm-ifcc-{target}.s", quiet=True)
+                dumpfile(f"ifcc-link-{target}.txt", quiet=True)
+        else:
+            stdin_data=open("input.stdin").read() if os.path.exists("input.stdin") else None
+            run_command(f"./exe-ifcc-{target}", f"ifcc-execute-{target}.txt", stdin_data=stdin_data)
+            
+            # Check for output differences or segfaults/crashes
+            if not os.path.exists(f"gcc-execute-{target}.txt") or not os.path.exists(f"ifcc-execute-{target}.txt") or open(f"gcc-execute-{target}.txt").read() != open(f"ifcc-execute-{target}.txt").read() :
+                status_msg = "FAIL (different results at execution)"
+                all_ok=False
 
-    ## both compilers  did produce an  executable, so now we  run both
-    ## these executables and compare the results.
+    print(f"TEST {status_msg}")
+    new_results.append((test_name, group, status_msg))
 
-    stdin_data=open("input.stdin").read() if os.path.exists("input.stdin") else None
-    run_command("./exe-ifcc", "ifcc-execute.txt", stdin_data=stdin_data)
-    if open("gcc-execute.txt").read() != open("ifcc-execute.txt").read() :
-        print("TEST FAIL (different results at execution)")
-        all_ok=False
+# Output CSV
+import csv
+import sys
+from datetime import datetime
 
-        if args.verbose:
-            print("GCC:")
-            dumpfile("gcc-execute.txt")
-            print("you:")
-            dumpfile("ifcc-execute.txt")
-        continue
+csv_filename = os.path.join(orig_cwd, "test_results.csv")
+headers = ["Test Name", "Group", "ARM64 Result", "x86_64 Result", "Last Run", "Comment"]
+existing_data = {}
 
-    ## last but not least
-    print("TEST OK")
+if os.path.exists(csv_filename):
+    with open(csv_filename, 'r', newline='', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            if "Test Name" in row:
+                existing_data[row["Test Name"]] = row
+
+current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+target_col = "ARM64 Result" if target == "arm64" else "x86_64 Result"
+
+for test_name, group, status_msg in new_results:
+    if test_name not in existing_data:
+        existing_data[test_name] = {h: "" for h in headers}
+        existing_data[test_name]["Test Name"] = test_name
+    existing_data[test_name]["Group"] = group
+    
+    existing_data[test_name][target_col] = status_msg
+    existing_data[test_name]["Last Run"] = current_time
+
+with open(csv_filename, 'w', newline='', encoding='utf-8') as f:
+    writer = csv.DictWriter(f, fieldnames=headers)
+    writer.writeheader()
+    # Write sorted by Test Name
+    for test_name in sorted(existing_data.keys()):
+        row = existing_data[test_name]
+        writer.writerow({h: row.get(h, "") for h in headers})
+
+print(f"Results written to {csv_filename}")
 
 if not (all_ok or args.verbose):
-    print("Some test-cases failed. Run ifcc-test.py with option '--verbose' for more detailed feedback.")
+    print("Some test-cases failed. Run ifcc-test.py with option '--verbose' for more detailed feedback.", file=sys.stderr)
 
 if all_ok:
     sys.exit(0)
