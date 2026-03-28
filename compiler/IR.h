@@ -316,3 +316,45 @@ private:
     std::string dest;
     int paramIndex; // index des paramètres
 };
+
+// IRInstrLoadAddr : dest = &src
+class IRInstrLoadAddr : public IRInstruction {
+public:
+    IRInstrLoadAddr(IRBasicBloc* parentBloc, const std::string& dest, const std::string& src);
+
+    void printDebug(std::ostream& out) const override;
+    void genX86(std::ostream& out) const override;
+    void genARM(std::ostream& out) const override;
+
+private:
+    std::string dest;
+    std::string src;
+};
+
+// IRInstrLoadDeref : dest = *src
+class IRInstrLoadDeref : public IRInstruction {
+public:
+    IRInstrLoadDeref(IRBasicBloc* parentBloc, const std::string& dest, const std::string& src);
+
+    void printDebug(std::ostream& out) const override;
+    void genX86(std::ostream& out) const override;
+    void genARM(std::ostream& out) const override;
+
+private:
+    std::string dest;
+    std::string src;
+};
+
+// IRInstrStoreDeref : *dest = src
+class IRInstrStoreDeref : public IRInstruction {
+public:
+    IRInstrStoreDeref(IRBasicBloc* parentBloc, const std::string& dest, const std::string& src);
+
+    void printDebug(std::ostream& out) const override;
+    void genX86(std::ostream& out) const override;
+    void genARM(std::ostream& out) const override;
+
+private:
+    std::string dest;
+    std::string src;
+};

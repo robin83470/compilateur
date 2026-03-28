@@ -79,15 +79,35 @@ void IRInstrCopy::printDebug(std::ostream& out) const {
 void IRInstrCopy::genX86(std::ostream& out) const {
     int offsetSrc = parentBloc->getCFG()->getSymbolTable()->getOffset(src);
     int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
-    out << "    movl " << offsetSrc << "(%rbp), %eax\n";
-    out << "    movl %eax, " << offsetDest << "(%rbp)\n";
+    
+    std::string srcType = parentBloc->getCFG()->getSymbolTable()->getType(src);
+    bool isPointer = parentBloc->getCFG()->getSymbolTable()->isPointerType(srcType);
+    
+    // Copie 64 bits pour les pointeurs et 32 bits pour les int
+    if (isPointer) {
+        out << "    movq " << offsetSrc << "(%rbp), %rax\n";
+        out << "    movq %rax, " << offsetDest << "(%rbp)\n";
+    } else {
+        out << "    movl " << offsetSrc << "(%rbp), %eax\n";
+        out << "    movl %eax, " << offsetDest << "(%rbp)\n";
+    }
 }
 
 void IRInstrCopy::genARM(std::ostream& out) const {
     int offsetSrc = parentBloc->getCFG()->getSymbolTable()->getOffset(src);
     int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
-    arm_codegen::emitLoadWFromOffset(out, offsetSrc, "w9");
-    arm_codegen::emitStoreWToOffset(out, offsetDest, "w9");
+    
+    std::string srcType = parentBloc->getCFG()->getSymbolTable()->getType(src);
+    bool isPointer = parentBloc->getCFG()->getSymbolTable()->isPointerType(srcType);
+    
+    // Copie 64 bits pour les pointeurs et 32 bits pour les int
+    if (isPointer) {
+        arm_codegen::emitLoadWFromOffset(out, offsetSrc, "x9");
+        arm_codegen::emitStoreWToOffset(out, offsetDest, "x9");
+    } else {
+        arm_codegen::emitLoadWFromOffset(out, offsetSrc, "w9");
+        arm_codegen::emitStoreWToOffset(out, offsetDest, "w9");
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -611,4 +631,114 @@ void IRInstrCall::genARM(std::ostream& out) const {
 
     int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
     out << "    str x0, [x29, #" << offsetDest << "]\n";
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  IRInstrLoadAddr
+// ═══════════════════════════════════════════════════════════════════
+IRInstrLoadAddr::IRInstrLoadAddr(IRBasicBloc* parentBloc, const std::string& dest, const std::string& src)
+    : IRInstruction(parentBloc), dest(dest), src(src) {}
+
+void IRInstrLoadAddr::printDebug(std::ostream& out) const {
+    out << "  loadaddr " << dest << " " << src << "\n";
+}
+
+void IRInstrLoadAddr::genX86(std::ostream& out) const {
+    int offsetSrc = parentBloc->getCFG()->getSymbolTable()->getOffset(src);
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+    // lea charge l'adresse effective
+    out << "    leaq " << offsetSrc << "(%rbp), %rax\n";
+    out << "    movq %rax, " << offsetDest << "(%rbp)\n";
+}
+
+void IRInstrLoadAddr::genARM(std::ostream& out) const {
+    int offsetSrc = parentBloc->getCFG()->getSymbolTable()->getOffset(src);
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+    arm_codegen::emitLoadImm32(out, "x9", offsetSrc);
+    out << "    add x10, x29, x9\n";
+    arm_codegen::emitStoreWToOffset(out, offsetDest, "x10");
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  IRInstrLoadDeref
+// ═══════════════════════════════════════════════════════════════════
+IRInstrLoadDeref::IRInstrLoadDeref(IRBasicBloc* parentBloc, const std::string& dest, const std::string& src)
+    : IRInstruction(parentBloc), dest(dest), src(src) {}
+
+void IRInstrLoadDeref::printDebug(std::ostream& out) const {
+    out << "  loadderef " << dest << " " << src << "\n";
+}
+
+void IRInstrLoadDeref::genX86(std::ostream& out) const {
+    int offsetSrc = parentBloc->getCFG()->getSymbolTable()->getOffset(src);
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+    std::string destType = parentBloc->getCFG()->getSymbolTable()->getType(dest);
+    bool destIsPointer = parentBloc->getCFG()->getSymbolTable()->isPointerType(destType);
+
+    out << "    movq " << offsetSrc << "(%rbp), %rax\n";
+    if (destIsPointer) {
+        out << "    movq (%rax), %rax\n";
+        out << "    movq %rax, " << offsetDest << "(%rbp)\n";
+    } else {
+        out << "    movl (%rax), %eax\n";
+        out << "    movl %eax, " << offsetDest << "(%rbp)\n";
+    }
+}
+
+void IRInstrLoadDeref::genARM(std::ostream& out) const {
+    int offsetSrc = parentBloc->getCFG()->getSymbolTable()->getOffset(src);
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+    std::string destType = parentBloc->getCFG()->getSymbolTable()->getType(dest);
+    bool destIsPointer = parentBloc->getCFG()->getSymbolTable()->isPointerType(destType);
+
+    arm_codegen::emitLoadWFromOffset(out, offsetSrc, "x9");
+    if (destIsPointer) {
+        out << "    ldr x10, [x9]\n";
+        arm_codegen::emitStoreWToOffset(out, offsetDest, "x10");
+    } else {
+        out << "    ldr w10, [x9]\n";
+        arm_codegen::emitStoreWToOffset(out, offsetDest, "w10");
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  IRInstrStoreDeref
+// ═══════════════════════════════════════════════════════════════════
+IRInstrStoreDeref::IRInstrStoreDeref(IRBasicBloc* parentBloc, const std::string& dest, const std::string& src)
+    : IRInstruction(parentBloc), dest(dest), src(src) {}
+
+void IRInstrStoreDeref::printDebug(std::ostream& out) const {
+    out << "  storederef " << dest << " " << src << "\n";
+}
+
+void IRInstrStoreDeref::genX86(std::ostream& out) const {
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+    int offsetSrc = parentBloc->getCFG()->getSymbolTable()->getOffset(src);
+    std::string srcType = parentBloc->getCFG()->getSymbolTable()->getType(src);
+    bool srcIsPointer = parentBloc->getCFG()->getSymbolTable()->isPointerType(srcType);
+
+    out << "    movq " << offsetDest << "(%rbp), %rax\n";
+    if (srcIsPointer) {
+        out << "    movq " << offsetSrc << "(%rbp), %rcx\n";
+        out << "    movq %rcx, (%rax)\n";
+    } else {
+        out << "    movl " << offsetSrc << "(%rbp), %ecx\n";
+        out << "    movl %ecx, (%rax)\n";
+    }
+}
+
+void IRInstrStoreDeref::genARM(std::ostream& out) const {
+    int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+    int offsetSrc = parentBloc->getCFG()->getSymbolTable()->getOffset(src);
+    std::string srcType = parentBloc->getCFG()->getSymbolTable()->getType(src);
+    bool srcIsPointer = parentBloc->getCFG()->getSymbolTable()->isPointerType(srcType);
+
+    arm_codegen::emitLoadWFromOffset(out, offsetDest, "x9");
+    if (srcIsPointer) {
+        arm_codegen::emitLoadWFromOffset(out, offsetSrc, "x10");
+        out << "    str x10, [x9]\n";
+    } else {
+        arm_codegen::emitLoadWFromOffset(out, offsetSrc, "w10");
+        out << "    str w10, [x9]\n";
+    }
 }

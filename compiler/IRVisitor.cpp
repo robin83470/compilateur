@@ -121,8 +121,15 @@ antlrcpp::Any IRVisitor::visitDeclaration_stmt(ifccParser::Declaration_stmtConte
 antlrcpp::Any IRVisitor::visitDeclarator(ifccParser::DeclaratorContext* ctx) {
     std::string varName = ctx->ID()->getText();
 
-    symbolTable->addSymbol(varName);
+    int pointerDepth = 0;
+    auto* p = ctx->pointer_prefix();
+    while (p != nullptr) {
+        pointerDepth++;
+        p = p->pointer_prefix();
+    }
 
+    std::string declaredType = "int" + std::string(pointerDepth, '*');
+    symbolTable->addSymbol(varName, declaredType);
     if (ctx->EQUAL()) {
         std::string tmp = std::any_cast<std::string>(visit(ctx->rhs()));
         auto* bloc = currentCFG->getCurrentBasicBloc();
@@ -138,10 +145,19 @@ antlrcpp::Any IRVisitor::visitPointer_prefix(ifccParser::Pointer_prefixContext* 
 }
 
 antlrcpp::Any IRVisitor::visitAssign_stmt(ifccParser::Assign_stmtContext* ctx) {
-    std::string varName = std::any_cast<std::string>(visit(ctx->lvalue()));
-    std::string tmp = std::any_cast<std::string>(visit(ctx->rhs()));
+    std::string lvalueResult = std::any_cast<std::string>(visit(ctx->lvalue()));
+    std::string rhsValue = std::any_cast<std::string>(visit(ctx->rhs()));
     auto* bloc = currentCFG->getCurrentBasicBloc();
-    bloc->addInstruction(new IRInstrCopy(bloc, varName, tmp));
+    
+    // Vérifier si c'est un déréférencement : la lvalue commence par "!deref_"
+    if (lvalueResult.rfind("!deref_", 0) == 0) {
+        // C'est une assignation via pointeur: *p = value
+        std::string pointerVar = lvalueResult.substr(7);
+        bloc->addInstruction(new IRInstrStoreDeref(bloc, pointerVar, rhsValue));
+    } else {
+        // Assignation normale: var = value
+        bloc->addInstruction(new IRInstrCopy(bloc, lvalueResult, rhsValue));
+    }
     return 0;
 }
 
@@ -150,8 +166,10 @@ antlrcpp::Any IRVisitor::visitLvalue_id(ifccParser::Lvalue_idContext* ctx) {
 }
 
 antlrcpp::Any IRVisitor::visitLvalue_deref(ifccParser::Lvalue_derefContext* ctx) {
-    (void)ctx;
-    throw std::runtime_error("Pointer dereference assignment is not implemented in IR yet.");
+    std::string innerLvalue = std::any_cast<std::string>(visit(ctx->lvalue()));
+    // On retourne avec un marqueur pour indiquer que c'est un déréférencement
+    // Le marqueur "!deref_" sera détecté dans visitAssign_stmt
+    return "!deref_" + innerLvalue;
 }
 
 antlrcpp::Any IRVisitor::visitLvalue_parenthese(ifccParser::Lvalue_parentheseContext* ctx) {
@@ -305,13 +323,23 @@ antlrcpp::Any IRVisitor::visitExpr_parenthese(ifccParser::Expr_parentheseContext
 }
 
 antlrcpp::Any IRVisitor::visitExpr_addrof(ifccParser::Expr_addrofContext* ctx) {
-    (void)ctx;
-    throw std::runtime_error("Address-of operator is not implemented in IR yet.");
+    std::string lvalueVar = std::any_cast<std::string>(visit(ctx->lvalue()));
+    std::string baseType = symbolTable->getType(lvalueVar);
+    std::string pointerType = baseType + "*";
+    std::string tmp = currentCFG->newTemp(pointerType);
+    auto* bloc = currentCFG->getCurrentBasicBloc();
+    bloc->addInstruction(new IRInstrLoadAddr(bloc, tmp, lvalueVar));
+    return tmp;
 }
 
 antlrcpp::Any IRVisitor::visitExpr_deref(ifccParser::Expr_derefContext* ctx) {
-    (void)ctx;
-    throw std::runtime_error("Pointer dereference expression is not implemented in IR yet.");
+    std::string pointerVar = std::any_cast<std::string>(visit(ctx->rhs()));
+    std::string pointerType = symbolTable->getType(pointerVar);
+    std::string baseType = pointerType.substr(0, pointerType.length() - 1);
+    std::string tmp = currentCFG->newTemp(baseType);
+    auto* bloc = currentCFG->getCurrentBasicBloc();
+    bloc->addInstruction(new IRInstrLoadDeref(bloc, tmp, pointerVar));
+    return tmp;
 }
 
 antlrcpp::Any IRVisitor::visitExpr_comparison(ifccParser::Expr_comparisonContext* ctx) {
