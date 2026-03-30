@@ -729,3 +729,54 @@ antlrcpp::Any IRVisitor::visitExpr_land(ifccParser::Expr_landContext *ctx) {
 
     return res;
 }
+
+antlrcpp::Any IRVisitor::visitExpr_lor(ifccParser::Expr_lorContext *ctx) {
+    // Variable contenant le résultat de (a || b)
+    std::string res = currentCFG->newTemp("int");
+
+    // Blocs pour évaluer la partie gauche (a) et la partie droite (b)
+    IRBasicBloc* evalLeftBloc  = currentCFG->getCurrentBasicBloc();
+    IRBasicBloc* evalRightBloc = currentCFG->addBasicBlocUnique("land_rhs");
+
+    // Blocs pour fixer le résultat à 0 si False et 1 si True
+    IRBasicBloc* setFalseBloc  = currentCFG->addBasicBlocUnique("land_false");
+    IRBasicBloc* setTrueBloc   = currentCFG->addBasicBlocUnique("land_true");
+
+    // Bloc où on continue après l'expression
+    IRBasicBloc* afterExprBloc = currentCFG->addBasicBlocUnique("land_after");
+
+    // Visiter l'expression de gauche a
+    std::string leftVar = std::any_cast<std::string>(visit(ctx->rhs(0)));
+
+    // Si l'évaluation de a donne vrai, on saute directement vers le bloc true sans évaluer b, sinon on évalue l'expression de droite b
+    evalLeftBloc->setTestVarName(leftVar);
+    evalLeftBloc->setExitTrue(setTrueBloc);
+    evalLeftBloc->setExitFalse(evalRightBloc);
+
+    // On bascule dans le bloc pour évaluer l'expression b
+    currentCFG->setCurrentBasicBloc(evalRightBloc);
+    std::string rightVar = std::any_cast<std::string>(visit(ctx->rhs(1)));
+
+
+
+    // Si l'évaluation de b donne vrai, on saute vers le bloc true sinon vers le bloc false
+    evalRightBloc->setTestVarName(rightVar);
+    evalRightBloc->setExitTrue(setTrueBloc);
+    evalRightBloc->setExitFalse(setFalseBloc);
+
+
+    // Bloc résultat faux (res = 0)
+    currentCFG->setCurrentBasicBloc(setFalseBloc);
+    setFalseBloc->addInstruction(new IRInstrConst(setFalseBloc, res, 0));
+    setFalseBloc->setExitTrue(afterExprBloc);
+
+    // Bloc résultat vrai (res = 1)
+    currentCFG->setCurrentBasicBloc(setTrueBloc);
+    setTrueBloc->addInstruction(new IRInstrConst(setTrueBloc, res, 1));
+    setTrueBloc->setExitTrue(afterExprBloc);
+
+    // Reprise vers la suite du programme après l'expression
+    currentCFG->setCurrentBasicBloc(afterExprBloc);
+
+    return res;
+}

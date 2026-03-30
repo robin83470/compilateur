@@ -58,6 +58,7 @@ public:
     virtual antlrcpp::Any visitExpr_funcCall(ifccParser::Expr_funcCallContext* ctx) override;
     virtual antlrcpp::Any visitRhsList(ifccParser::RhsListContext* ctx) override;
     virtual antlrcpp::Any visitExpr_land(ifccParser::Expr_landContext *ctx) override;
+    virtual antlrcpp::Any visitExpr_lor(ifccParser::Expr_lorContext *ctx) override;
 private:
     std::vector<std::pair<IRControlFlowGraph*, SymbolTable*>> allFunctions;
     struct LoopContext {
