@@ -14,7 +14,6 @@ class IRVisitor : public ifccBaseVisitor {
 public:
     struct FunctionData {
         std::string name;
-        size_t numParams;
         IRControlFlowGraph* cfg;
         SymbolTable* symbolTable;
     };

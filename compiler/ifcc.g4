@@ -4,8 +4,7 @@ axiom : prog EOF ;
 
 prog : function* ;
 
-function : 'int' ID '(' paramList? ')' '{' stmt* '}'
-         | 'int' 'main' '(' ')' '{' stmt* '}' ;
+function : 'int' ID '(' paramList? ')' '{' stmt* '}' ;
 
 paramList : 'int' ID (',' 'int' ID)* ;
 

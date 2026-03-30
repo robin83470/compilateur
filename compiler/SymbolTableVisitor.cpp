@@ -24,13 +24,12 @@ bool isIntType(const std::string& type) {
 antlrcpp::Any SymbolTableVisitor::visitProg(ifccParser::ProgContext *ctx) {
     // Visite tous les enfants
     for (auto* func : ctx->function()) {
-        if (func->ID()) {
-            std::string funcName = func->ID()->getText();
-            knownFunctions.push_back(funcName);
-            size_t numParams = func->paramList() ? func->paramList()->ID().size() : 0;
-            functionParamCounts[funcName] = numParams;
-        }
+        std::string funcName = func->ID()->getText();
+        knownFunctions.push_back(funcName);
+        size_t numParams = func->paramList() ? func->paramList()->ID().size() : 0;
+        functionParamCounts[funcName] = numParams;
     }
+
     visitChildren(ctx);
     symbolTable.checkUnusedVariables();
     return 0;
@@ -242,7 +241,7 @@ antlrcpp::Any SymbolTableVisitor::visitExpr_funcCall(ifccParser::Expr_funcCallCo
 }
 
 antlrcpp::Any SymbolTableVisitor::visitFunction(ifccParser::FunctionContext *ctx) {
-    std::string funcName = ctx->ID() ? ctx->ID()->getText() : "main";
+    std::string funcName = ctx->ID()->getText();
     
     SymbolTable savedTable = symbolTable;  // sauvegarde
     symbolTable = SymbolTable{};           // table fraîche pour cette fonction
@@ -260,7 +259,7 @@ antlrcpp::Any SymbolTableVisitor::visitFunction(ifccParser::FunctionContext *ctx
 
     functionSymbolTables[funcName] = symbolTable;
     
-    symbolTable = savedTable;  // restaure
+    symbolTable = savedTable; 
     return 0;
 }
 

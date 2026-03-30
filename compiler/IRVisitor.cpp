@@ -468,7 +468,7 @@ antlrcpp::Any IRVisitor::visitExpr_putchar(ifccParser::Expr_putcharContext* ctx)
 }
 
 antlrcpp::Any IRVisitor::visitFunction(ifccParser::FunctionContext* ctx) {
-    std::string funcName = ctx->ID() ? ctx->ID()->getText() : "main";
+    std::string funcName = ctx->ID()->getText();
 
     symbolTable = new SymbolTable(functionSymbolTables.at(funcName));
 
@@ -478,23 +478,22 @@ antlrcpp::Any IRVisitor::visitFunction(ifccParser::FunctionContext* ctx) {
     currentCFG->addBasicBloc(funcName + "_entry");
     currentCFG->setCurrentBasicBloc(currentCFG->getBlocs()[0]);
 
-    symbolTable->addSymbol("!retval");
+    symbolTable->addSymbol("!retval"); // Valeur de retour
     epilogueBloc = currentCFG->addBasicBloc("." + funcName + "_exit");
-    size_t numParams = ctx->paramList() ? ctx->paramList()->ID().size() : 0;
     
     if (ctx->paramList()) {
         auto* paramList = ctx->paramList();
         for (size_t i = 0; i < paramList->ID().size(); i++) {
             std::string paramName = paramList->ID(i)->getText();
             auto* bloc = currentCFG->getCurrentBasicBloc();
-            bloc->addInstruction(new IRInstrGetParam(bloc, paramName, i));
+            bloc->addInstruction(new IRInstrGetParam(bloc, paramName, i)); //Ajout des paramétres de la fonction
         }
     }
 
     for (auto* stmt : ctx->stmt()) {
         visit(stmt);
     }
-    allFunctions.push_back({funcName, numParams, currentCFG, symbolTable});
+    allFunctions.push_back({funcName, currentCFG, symbolTable});
 
     return 0;
 }
