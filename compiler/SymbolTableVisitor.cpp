@@ -35,9 +35,15 @@ int parseCharLiteral(const std::string& text) {
 
 antlrcpp::Any SymbolTableVisitor::visitProg(ifccParser::ProgContext *ctx) {
     // Visite tous les enfants
+    for (auto* func : ctx->function()) {
+        std::string funcName = func->ID()->getText();
+        knownFunctions.push_back(funcName);
+        size_t numParams = func->paramList() ? func->paramList()->ID().size() : 0;
+        functionParamCounts[funcName] = numParams;
+    }
+
     visitChildren(ctx);
     symbolTable.checkUnusedVariables();
-
     return 0;
 }
 
@@ -222,7 +228,22 @@ void SymbolTableVisitor::checkVariableUsed(const std::string& varName) {
 }
 
 antlrcpp::Any SymbolTableVisitor::visitExpr_funcCall(ifccParser::Expr_funcCallContext* ctx) {
-    // Vérifier les types des arguments
+    // Vérifier l'existence de la fonction puis l'arité de l'appel.
+    std::string funcName = ctx->ID()->getText();
+    if (std::find(knownFunctions.begin(), knownFunctions.end(), funcName) == knownFunctions.end()) {
+        throw std::runtime_error("Erreur : la fonction '" + funcName + "' n'est pas déclarée.");
+    }
+
+    size_t actualNumArgs = ctx->rhsList() ? ctx->rhsList()->rhs().size() : 0;
+    size_t expectedNumArgs = functionParamCounts.at(funcName);
+    if (actualNumArgs != expectedNumArgs) {
+        throw std::runtime_error(
+            "Erreur : la fonction '" + funcName + "' attend " +
+            std::to_string(expectedNumArgs) + " argument(s), mais " +
+            std::to_string(actualNumArgs) + " ont ete fournis."
+        );
+    }
+
     if (ctx->rhsList()) {
         for (auto* rhs : ctx->rhsList()->rhs()) {
             visit(rhs);
@@ -232,9 +253,10 @@ antlrcpp::Any SymbolTableVisitor::visitExpr_funcCall(ifccParser::Expr_funcCallCo
 }
 
 antlrcpp::Any SymbolTableVisitor::visitFunction(ifccParser::FunctionContext *ctx) {
+    std::string funcName = ctx->ID()->getText();
+    
     SymbolTable savedTable = symbolTable;  // sauvegarde
     symbolTable = SymbolTable{};           // table fraîche pour cette fonction
-
     if (ctx->paramList()) {
         auto* paramList = ctx->paramList();
         for (auto* id : paramList->ID()) {
@@ -247,7 +269,9 @@ antlrcpp::Any SymbolTableVisitor::visitFunction(ifccParser::FunctionContext *ctx
         visit(stmt);
     }
 
-    symbolTable = savedTable;  // restaure
+    functionSymbolTables[funcName] = symbolTable;
+    
+    symbolTable = savedTable; 
     return 0;
 }
 
