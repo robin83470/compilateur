@@ -65,8 +65,8 @@ antlrcpp::Any IRVisitor::visitDeclarator(ifccParser::DeclaratorContext* ctx) {
     }
 
     std::string varType = "int" + std::string(pointerDepth, '*');
-    symbolTable->addSymbol(varName, varType);
-
+    // SymbolTableVisitor has already validated and recorded declarations.
+    // Keep addSymbol only for symbols not already present in the copied table.
     if (ctx->EQUAL()) {
         std::string tmp = std::any_cast<std::string>(visit(ctx->rhs()));
         auto* bloc = currentCFG->getCurrentBasicBloc();
@@ -470,7 +470,6 @@ antlrcpp::Any IRVisitor::visitExpr_putchar(ifccParser::Expr_putcharContext* ctx)
 antlrcpp::Any IRVisitor::visitFunction(ifccParser::FunctionContext* ctx) {
     std::string funcName = ctx->ID() ? ctx->ID()->getText() : "main";
 
-    SymbolTable* oldSymbolTable = symbolTable;
     symbolTable = new SymbolTable(functionSymbolTables.at(funcName));
 
     IRControlFlowGraph* oldCFG = currentCFG;
@@ -496,9 +495,6 @@ antlrcpp::Any IRVisitor::visitFunction(ifccParser::FunctionContext* ctx) {
         visit(stmt);
     }
     allFunctions.push_back({funcName, numParams, currentCFG, symbolTable});
-    // === RESTAURER L'ANCIENNE STATE ===
-    symbolTable = oldSymbolTable;
-    currentCFG = oldCFG;
 
     return 0;
 }
@@ -511,18 +507,6 @@ antlrcpp::Any IRVisitor::visitExpr_funcCall(ifccParser::Expr_funcCallContext* ct
         args = std::any_cast<std::vector<std::string>>(rhsListResult);
     }
 
-    bool isDeclared = 0;
-
-    for (const auto& func : allFunctions) {
-        if (func.name == funcName) {
-            if (args.size() != func.numParams) {
-                throw std::runtime_error("Error: function " + funcName + " expects " + 
-                    std::to_string(func.numParams) + " arguments, but " + 
-                    std::to_string(args.size()) + " were provided.");
-            }
-            break; //TODO: look what happen if there are 2 definitions
-        }
-    }
     std::string dest = currentCFG->newTemp();
     auto* bloc = currentCFG->getCurrentBasicBloc();
     bloc->addInstruction(new IRInstrCall(bloc, dest, funcName, args));

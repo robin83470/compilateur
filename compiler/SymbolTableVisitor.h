@@ -48,5 +48,6 @@ class SymbolTableVisitor : public ifccBaseVisitor {
         std::string addPointerLevel(const std::string& type) const;
         std::string removePointerLevel(const std::string& type, const std::string& where) const;
         std::vector<std::string> knownFunctions{};
+        std::map<std::string, size_t> functionParamCounts;
         std::map<std::string, SymbolTable> functionSymbolTables;
 };
