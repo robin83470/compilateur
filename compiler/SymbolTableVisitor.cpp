@@ -57,10 +57,21 @@ antlrcpp::Any SymbolTableVisitor::visitPointer_prefix(ifccParser::Pointer_prefix
 
 
 antlrcpp::Any SymbolTableVisitor::visitAssign_stmt(ifccParser::Assign_stmtContext *ctx) {
-    // Vérifie que le type de l'expression à droite est compatible avec le type de la variable à gauche
     std::string lhsType = std::any_cast<std::string>(visit(ctx->lvalue()));
     std::string rhsType = std::any_cast<std::string>(visit(ctx->rhs()));
-    requireType(rhsType, lhsType, "assignation");
+    std::string op = ctx->assign_op()->getText();
+
+    if (op == "=") {
+        requireType(rhsType, lhsType, "assignation");
+        return 0;
+    }
+
+    // a op= b est vérifiée comme d'abord "a op b" puis réaffectation du résultat dans a.
+    // Autrement dit  a = a op b
+
+    // Pour le moment, on ne prend en charge que les int (pas d'arithmétique des pointeurs)
+    requireType(lhsType, "int", "operande gauche de " + op);
+    requireType(rhsType, "int", "operande droit de " + op);
 
     return 0;
 }
