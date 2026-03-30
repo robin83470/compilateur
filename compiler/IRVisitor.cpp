@@ -19,6 +19,26 @@ int parseCharLiteralValue(const std::string& text) {
     }
     return text[1];
 }
+
+std::string buildCompoundAssignmentValue(IRControlFlowGraph* cfg,IRBasicBloc* bloc, const std::string& op,
+                               const std::string& lhs,
+                               const std::string& rhs) {
+    std::string tmp = cfg->newTemp();
+    if (op == "+=") {
+        bloc->addInstruction(new IRInstrAdd(bloc, tmp, lhs, rhs));
+    } else if (op == "-=") {
+        bloc->addInstruction(new IRInstrSub(bloc, tmp, lhs, rhs));
+    } else if (op == "*=") {
+        bloc->addInstruction(new IRInstrMult(bloc, tmp, lhs, rhs));
+    } else if (op == "/=") {
+        bloc->addInstruction(new IRInstrDiv(bloc, tmp, lhs, rhs));
+    } else if (op == "%=") {
+        bloc->addInstruction(new IRInstrMod(bloc, tmp, lhs, rhs));
+    } else {
+        throw std::runtime_error("L'opérateur n'est pas supporté: " + op);
+    }
+    return tmp;
+}
 }
 
 IRVisitor::IRVisitor(SymbolTable* symbolTable)
@@ -148,15 +168,42 @@ antlrcpp::Any IRVisitor::visitPointer_prefix(ifccParser::Pointer_prefixContext* 
 
 antlrcpp::Any IRVisitor::visitAssign_stmt(ifccParser::Assign_stmtContext* ctx) {
     std::string lhsDesc = std::any_cast<std::string>(visit(ctx->lvalue()));
-    std::string tmp = std::any_cast<std::string>(visit(ctx->rhs()));
+    std::string rhsTmp = std::any_cast<std::string>(visit(ctx->rhs()));
+    std::string op = ctx->assign_op()->getText();
     auto* bloc = currentCFG->getCurrentBasicBloc();
 
+
+    // Cas simple : a = b : on a déjà évalué rhs dans rhsTmp et il faut juste l'écrire dans la destination
+    if (op == "=") {
+        if (lhsDesc.rfind("var:", 0) == 0) {
+            std::string varName = lhsDesc.substr(4);
+            bloc->addInstruction(new IRInstrCopy(bloc, varName, rhsTmp));
+        } else if (lhsDesc.rfind("ptr:", 0) == 0) {
+            std::string addrPtr = lhsDesc.substr(4);
+            bloc->addInstruction(new IRInstrStoreIndirect(bloc, rhsTmp, addrPtr));
+        } else {
+            throw std::runtime_error("Unexpected lvalue descriptor in assignment: " + lhsDesc);
+        }
+
+        return 0;
+    }
+
+    // Cas des affectations composées : a op= b   <=>   a = a op b
+    // Récupérer l'ancienne valeur de la destination a
+    // Calculer et réecrire le résultat du calcul dans la même destination
+
     if (lhsDesc.rfind("var:", 0) == 0) {
+        // Si on a une simple variable
         std::string varName = lhsDesc.substr(4);
-        bloc->addInstruction(new IRInstrCopy(bloc, varName, tmp));
+        std::string resultTmp = buildCompoundAssignmentValue(currentCFG, bloc, op, varName, rhsTmp); // resultTmp = a op b
+        bloc->addInstruction(new IRInstrCopy(bloc, varName, resultTmp)); // on réécrit la valeur calculée dans a
     } else if (lhsDesc.rfind("ptr:", 0) == 0) {
+        // Si on doit déréférencer le résultat
         std::string addrPtr = lhsDesc.substr(4);
-        bloc->addInstruction(new IRInstrStoreIndirect(bloc, tmp, addrPtr));
+        std::string lhsTmp = currentCFG->newTemp();
+        bloc->addInstruction(new IRInstrLoadIndirect(bloc, lhsTmp, addrPtr)); // charger l'ancienne valeur de *p dans un temp
+        std::string resultTmp = buildCompoundAssignmentValue(currentCFG, bloc, op, lhsTmp, rhsTmp); // resultTmp = lhsTmp op rhsTmp
+        bloc->addInstruction(new IRInstrStoreIndirect(bloc, resultTmp, addrPtr)); // stocker le résultat à l'adresse addrPtr
     } else {
         throw std::runtime_error("Unexpected lvalue descriptor in assignment: " + lhsDesc);
     }
