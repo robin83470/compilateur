@@ -54,6 +54,8 @@ rhs :
     | rhs ('+'|'-') rhs # Expr_plusmoins
     | rhs (CMPLE|CMPGE|CMPLT|CMPGT) rhs # Expr_comparison
     | rhs (CMPEQ|CMPNE) rhs            # Expr_equality
+    | rhs LAND rhs                     # Expr_land
+    | rhs LOR rhs                      # Expr_lor
     | rhs BAND rhs                     # Expr_and
     | rhs BOR rhs                      # Expr_or
     | rhs BXOR rhs                     # Expr_xor
@@ -90,6 +92,8 @@ CMPLT : '<' ;
 CMPGT : '>' ;
 CMPEQ : '==' ;
 CMPNE : '!=' ;
+LAND : '&&' ;
+LOR : '||' ;
 BAND : '&' ;
 BXOR : '^' ;
 BOR  : '|' ;
