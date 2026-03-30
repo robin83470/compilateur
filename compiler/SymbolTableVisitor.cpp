@@ -228,6 +228,8 @@ antlrcpp::Any SymbolTableVisitor::visitExpr_funcCall(ifccParser::Expr_funcCallCo
 }
 
 antlrcpp::Any SymbolTableVisitor::visitFunction(ifccParser::FunctionContext *ctx) {
+    std::string funcName = ctx->ID() ? ctx->ID()->getText() : "main";
+    
     SymbolTable savedTable = symbolTable;  // sauvegarde
     symbolTable = SymbolTable{};           // table fraîche pour cette fonction
     if (ctx->paramList()) {
@@ -242,6 +244,8 @@ antlrcpp::Any SymbolTableVisitor::visitFunction(ifccParser::FunctionContext *ctx
         visit(stmt);
     }
 
+    functionSymbolTables[funcName] = symbolTable;
+    
     symbolTable = savedTable;  // restaure
     return 0;
 }

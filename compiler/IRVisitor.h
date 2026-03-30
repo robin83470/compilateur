@@ -19,11 +19,11 @@ public:
         SymbolTable* symbolTable;
     };
 
-    IRVisitor(SymbolTable* symbolTable);
+    IRVisitor(SymbolTable* symbolTable, const std::map<std::string, SymbolTable>& funcTables);
 
     IRControlFlowGraph* buildIr(antlr4::tree::ParseTree* tree);
 
-    // ── Visiteurs ANTLR ─────────────────────────────────────────
+
     virtual antlrcpp::Any visitProg(ifccParser::ProgContext* ctx) override;
     virtual antlrcpp::Any visitFunction(ifccParser::FunctionContext* ctx) override;
     virtual antlrcpp::Any visitReturn_stmt(ifccParser::Return_stmtContext* ctx) override;
@@ -74,6 +74,7 @@ private:
     IRBasicBloc* epilogueBloc = nullptr;  //pointeur vers le bloc épilogue, pour y ajouter les instructions de retour
     IRControlFlowGraph* currentCFG = nullptr;
     SymbolTable* symbolTable;
+    std::map<std::string, SymbolTable> functionSymbolTables;
     int ifCounter = 0;
     std::vector<LoopContext> loopStack; // pile des contextes de boucles pour gérer les boucles
 };

@@ -1,8 +1,8 @@
 #include "IRVisitor.h"
 #include "IR.h"
 
-IRVisitor::IRVisitor(SymbolTable* symbolTable)
-    : symbolTable(symbolTable) {}
+IRVisitor::IRVisitor(SymbolTable* symbolTable, const std::map<std::string, SymbolTable>& funcTables)
+    : symbolTable(symbolTable), functionSymbolTables(funcTables) {}
 
 IRControlFlowGraph* IRVisitor::buildIr(antlr4::tree::ParseTree* tree) {
     currentCFG = new IRControlFlowGraph(symbolTable);
@@ -470,30 +470,23 @@ antlrcpp::Any IRVisitor::visitExpr_putchar(ifccParser::Expr_putcharContext* ctx)
 antlrcpp::Any IRVisitor::visitFunction(ifccParser::FunctionContext* ctx) {
     std::string funcName = ctx->ID() ? ctx->ID()->getText() : "main";
 
-    // === CRÉER UNE NOUVELLE SYMBOL TABLE POUR CETTE FONCTION ===
     SymbolTable* oldSymbolTable = symbolTable;
-    symbolTable = new SymbolTable();
+    symbolTable = new SymbolTable(functionSymbolTables.at(funcName));
 
-    // === CRÉER UN NOUVEAU CFG AVEC LA NOUVELLE SYMBOL TABLE ===
     IRControlFlowGraph* oldCFG = currentCFG;
     currentCFG = new IRControlFlowGraph(symbolTable);
 
-    // === INITIALISER LE CFG ===
     currentCFG->addBasicBloc(funcName + "_entry");
     currentCFG->setCurrentBasicBloc(currentCFG->getBlocs()[0]);
 
     symbolTable->addSymbol("!retval");
     epilogueBloc = currentCFG->addBasicBloc("." + funcName + "_exit");
-    size_t numParams = 0;
-    // === AJOUTER LES PARAMÈTRES ===
+    size_t numParams = ctx->paramList() ? ctx->paramList()->ID().size() : 0;
+    
     if (ctx->paramList()) {
         auto* paramList = ctx->paramList();
-        numParams = paramList->ID().size();
-
-        for (size_t i = 0; i < numParams; i++) {
+        for (size_t i = 0; i < paramList->ID().size(); i++) {
             std::string paramName = paramList->ID(i)->getText();
-            symbolTable->addSymbol(paramName);
-
             auto* bloc = currentCFG->getCurrentBasicBloc();
             bloc->addInstruction(new IRInstrGetParam(bloc, paramName, i));
         }

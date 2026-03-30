@@ -38,10 +38,15 @@ class SymbolTableVisitor : public ifccBaseVisitor {
         std::vector<std::string> getknownFunction(){
             return knownFunctions;
         };
+
+        const std::map<std::string, SymbolTable>& getFunctionSymbolTables() const {
+            return functionSymbolTables;
+        }
     private:
         void checkVariableUsed(const std::string& varName);
         void requireType(const std::string& actual, const std::string& expected, const std::string& where);
         std::string addPointerLevel(const std::string& type) const;
         std::string removePointerLevel(const std::string& type, const std::string& where) const;
         std::vector<std::string> knownFunctions{};
+        std::map<std::string, SymbolTable> functionSymbolTables;
 };

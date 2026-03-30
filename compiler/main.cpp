@@ -139,7 +139,7 @@ int main(int argn, const char **argv)
         SymbolTableVisitor symbolTableVisitor;
         symbolTableVisitor.visit(tree);
 
-        IRVisitor irVisitor(&symbolTableVisitor.symbolTable);
+        IRVisitor irVisitor(&symbolTableVisitor.symbolTable, symbolTableVisitor.getFunctionSymbolTables());
 
 
     irVisitor.buildIr(tree);
