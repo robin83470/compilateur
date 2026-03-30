@@ -54,7 +54,7 @@ int main(int argn, const char **argv)
     string inputPath;
 
     for (int i = 1; i < argn; ++i) {
-        string arg = argv[i];
+        string arg = argv[i]; //
 
         if (arg == "--help" || arg == "-h") {
             printUsage(argv[0]);
