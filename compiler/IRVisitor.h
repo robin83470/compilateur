@@ -38,6 +38,7 @@ public:
     virtual antlrcpp::Any visitSwitch_value(ifccParser::Switch_valueContext* ctx) override;
 
     virtual antlrcpp::Any visitExpr_const(ifccParser::Expr_constContext* ctx) override;
+    virtual antlrcpp::Any visitExpr_negconst(ifccParser::Expr_negconstContext* ctx) override;
     virtual antlrcpp::Any visitExpr_char(ifccParser::Expr_charContext* ctx) override;
     virtual antlrcpp::Any visitExpr_id(ifccParser::Expr_idContext* ctx) override;
     virtual antlrcpp::Any visitExpr_plusmoins(ifccParser::Expr_plusmoinsContext* ctx) override;

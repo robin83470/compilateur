@@ -272,6 +272,14 @@ antlrcpp::Any IRVisitor::visitExpr_const(ifccParser::Expr_constContext* ctx) {
     return tmp;
 }
 
+antlrcpp::Any IRVisitor::visitExpr_negconst(ifccParser::Expr_negconstContext* ctx) {
+    std::string tmp = currentCFG->newTemp();
+    int val = std::stoi(ctx->NEGCONST()->getText());
+    auto* bloc = currentCFG->getCurrentBasicBloc();
+    bloc->addInstruction(new IRInstrConst(bloc, tmp, val));
+    return tmp;
+}
+
 antlrcpp::Any IRVisitor::visitExpr_char(ifccParser::Expr_charContext* ctx) {
     std::string text = ctx->CHARCONST()->getText();
     int val = 0;
@@ -556,27 +564,29 @@ antlrcpp::Any IRVisitor::visitSwitch_stmt(ifccParser::Switch_stmtContext* ctx) {
     // Bloc de sortie du switch
     IRBasicBloc* endSwitch = currentCFG->addBasicBlocUnique("after_switch");
 
-    // Blocs pour faire les comparaisons
+    std::vector<ifccParser::Switch_caseContext*> orderedCases;
     std::vector<IRBasicBloc*> testBlocs;
+    std::vector<IRBasicBloc*> clauseBlocs;
+    std::vector<bool> isDefaultClause;
+    int defaultClauseIndex = -1;
 
-    // Blocs pour les codes à exécuter pour chaque case
-    std::vector<IRBasicBloc*> caseBlocs;
-
-    for (size_t i = 0; i < ctx->switch_case().size(); ++i) {
-        testBlocs.push_back(currentCFG->addBasicBlocUnique("switch_test"));
-        caseBlocs.push_back(currentCFG->addBasicBlocUnique("switch_case"));
-    }
-
-    // Bloc default si il existe
-    IRBasicBloc* defaultBloc = nullptr;
-    if (ctx->switch_default() != nullptr) {
-        defaultBloc = currentCFG->addBasicBlocUnique("switch_default");
+    for (auto* clause : ctx->switch_clause()) {
+        if (auto* switchCase = clause->switch_case()) {
+            orderedCases.push_back(switchCase);
+            testBlocs.push_back(currentCFG->addBasicBlocUnique("switch_test"));
+            clauseBlocs.push_back(currentCFG->addBasicBlocUnique("switch_case"));
+            isDefaultClause.push_back(false);
+        } else {
+            clauseBlocs.push_back(currentCFG->addBasicBlocUnique("switch_default"));
+            isDefaultClause.push_back(true);
+            defaultClauseIndex = static_cast<int>(clauseBlocs.size()) - 1;
+        }
     }
 
     if (!testBlocs.empty()) {
         entryBloc->setExitTrue(testBlocs.front());
-    } else if (defaultBloc != nullptr) {
-        entryBloc->setExitTrue(defaultBloc);
+    } else if (defaultClauseIndex != -1) {
+        entryBloc->setExitTrue(clauseBlocs[defaultClauseIndex]);
     } else {
         entryBloc->setExitTrue(endSwitch);
     }
@@ -586,7 +596,7 @@ antlrcpp::Any IRVisitor::visitSwitch_stmt(ifccParser::Switch_stmtContext* ctx) {
     // Chaque bloc de test vérifie si la valeur du switch correspond à un case
     for (size_t i = 0; i < testBlocs.size(); ++i) {
         currentCFG->setCurrentBasicBloc(testBlocs[i]);
-        auto* switchCase = ctx->switch_case(i);
+        auto* switchCase = orderedCases[i];
         std::string caseValueTmp = std::any_cast<std::string>(visit(switchCase->switch_value()));
 
         // cmpTmp vaut 1 si switchTmp == caseValueTmp, sinon 0
@@ -595,7 +605,15 @@ antlrcpp::Any IRVisitor::visitSwitch_stmt(ifccParser::Switch_stmtContext* ctx) {
         testBlocs[i]->setTestVarName(cmpTmp);
 
         // Si la comparaison est vraie, on exécute le code du case
-        testBlocs[i]->setExitTrue(caseBlocs[i]);
+        size_t clauseIndex = 0;
+        size_t seenCases = 0;
+        for (; clauseIndex < isDefaultClause.size(); ++clauseIndex) {
+            if (!isDefaultClause[clauseIndex]) {
+                if (seenCases == i) break;
+                seenCases++;
+            }
+        }
+        testBlocs[i]->setExitTrue(clauseBlocs[clauseIndex]);
 
         IRBasicBloc* falseDest = nullptr;
 
@@ -603,9 +621,9 @@ antlrcpp::Any IRVisitor::visitSwitch_stmt(ifccParser::Switch_stmtContext* ctx) {
         if (i + 1 < testBlocs.size()) {
             // Si le test du case courant échoue et qu’il y a un autre case après on teste le suivant.
             falseDest = testBlocs[i + 1];
-        } else if (defaultBloc != nullptr) {
+        } else if (defaultClauseIndex != -1) {
             // Si aucun case n'a matché jusque-là on va sur default s'il existe
-            falseDest = defaultBloc;
+            falseDest = clauseBlocs[defaultClauseIndex];
         } else {
             // Sinon c'est qu'aucune case ne correspond et on sort du switch
             falseDest = endSwitch;
@@ -613,40 +631,29 @@ antlrcpp::Any IRVisitor::visitSwitch_stmt(ifccParser::Switch_stmtContext* ctx) {
         testBlocs[i]->setExitFalse(falseDest);
     }
 
-    // Chaque bloc case contient les instructions du case correspondant
-    for (size_t i = 0; i < caseBlocs.size(); ++i) {
-        currentCFG->setCurrentBasicBloc(caseBlocs[i]);
+    // Chaque clause tombe sur la suivante en absence de break/return.
+    size_t caseIndex = 0;
+    for (size_t i = 0; i < clauseBlocs.size(); ++i) {
+        currentCFG->setCurrentBasicBloc(clauseBlocs[i]);
 
-        for (auto* stmt : ctx->switch_case(i)->stmt()) {
-            visit(stmt);
+        if (isDefaultClause[i]) {
+            for (auto* stmt : ctx->switch_clause(i)->switch_default()->stmt()) {
+                visit(stmt);
+            }
+        } else {
+            for (auto* stmt : orderedCases[caseIndex]->stmt()) {
+                visit(stmt);
+            }
+            caseIndex++;
         }
 
-        // Le dernier bloc du case peut être différent si des sous-blocs ont été créés
         IRBasicBloc* tailBloc = currentCFG->getCurrentBasicBloc();
         if (tailBloc->getExitTrue() == nullptr && tailBloc->getExitFalse() == nullptr) {
-            if (i + 1 < caseBlocs.size()) {
-                // Si on n'a pas de break ni de return, on continue dans le case suivant
-                tailBloc->setExitTrue(caseBlocs[i + 1]);
-            } else if (defaultBloc != nullptr) {
-                // Une fois qu'on atteint le dernier case on continue dans default s'il existe
-                tailBloc->setExitTrue(defaultBloc);
+            if (i + 1 < clauseBlocs.size()) {
+                tailBloc->setExitTrue(clauseBlocs[i + 1]);
             } else {
-                // Sinon c'est qu'on a fini le switch
                 tailBloc->setExitTrue(endSwitch);
             }
-        }
-    }
-
-    if (defaultBloc != nullptr) {
-        // Le bloc default est atteint si aucun case ne correspond ou si le dernier case tombe dedans sans break
-        currentCFG->setCurrentBasicBloc(defaultBloc);
-        for (auto* stmt : ctx->switch_default()->stmt()) {
-            visit(stmt);
-        }
-
-        IRBasicBloc* tailBloc = currentCFG->getCurrentBasicBloc();
-        if (tailBloc->getExitTrue() == nullptr && tailBloc->getExitFalse() == nullptr) {
-            tailBloc->setExitTrue(endSwitch); // Default mène à la fin du switch.
         }
     }
 
@@ -659,8 +666,8 @@ antlrcpp::Any IRVisitor::visitSwitch_stmt(ifccParser::Switch_stmtContext* ctx) {
 antlrcpp::Any IRVisitor::visitSwitch_value(ifccParser::Switch_valueContext* ctx) {
     int val = 0;
 
-    if (ctx->CONST() != nullptr) {
-        val = std::stoi(ctx->CONST()->getText());
+    if (ctx->CONST() != nullptr || ctx->NEGCONST() != nullptr) {
+        val = std::stoi(ctx->getText());
     } else {
         val = parseCharLiteralValue(ctx->CHARCONST()->getText());
     }

@@ -25,7 +25,7 @@ continue_stmt : CONTINUE ';' ;
 switch_stmt : SWITCH '(' rhs ')' '{' switch_case* switch_default? '}' ;
 switch_case : CASE switch_value ':' stmt* ;
 switch_default : DEFAULT ':' stmt* ;
-switch_value : CONST | CHARCONST ;
+switch_value : CONST | NEGCONST | CHARCONST ;
 
 assign_op : EQUAL | PLUSEQ | MINUSEQ | MULEQ | DIVEQ | MODEQ ;
 WHILE : 'while' ;
@@ -64,6 +64,7 @@ rhs :
     | PUTCHAR '(' io_arg ')'           # Expr_putchar
     | ID '(' rhsList? ')' # Expr_funcCall
     | CONST                            # Expr_const
+    | NEGCONST                         # Expr_negconst
     | CHARCONST                        # Expr_char
     | ID                               # Expr_id
 ;
@@ -75,6 +76,7 @@ RETURN : 'return' ;
 GETCHAR : 'getchar' ;
 PUTCHAR : 'putchar' ;
 CONST : [0-9]+ ;
+NEGCONST : '-' [0-9]+ ;
 CHARCONST : '\'' ( '\\' . | ~('\\'|'\'') ) '\'' ;
 LINE_COMMENT : '//' ~[\r\n]* -> skip ;
 COMMENT : '/*' .*? '*/' -> skip ;
