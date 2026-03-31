@@ -515,12 +515,10 @@ antlrcpp::Any IRVisitor::visitWhile_stmt(ifccParser::While_stmtContext* ctx) {
 
 antlrcpp::Any IRVisitor::visitIf_stmt(ifccParser::If_stmtContext *ctx)
 {
-    int ifId = ifCounter++;
-
     IRBasicBloc* currentTestBloc = currentCFG->getCurrentBasicBloc();
 
-    // Nouvelle grammaire: une seule condition, une seule instruction/ bloc then, optionnellement un else
-    bool hasElse = (ctx->stmt().size() > 1);
+    // Nouvelle grammaire: le then est un branch_body, le else eventuel est un else_branch.
+    bool hasElse = (ctx->else_branch() != nullptr);
 
     IRBasicBloc* thenBloc = currentCFG->addBasicBlocUnique(".then_");
     IRBasicBloc* elseBloc = hasElse ? currentCFG->addBasicBlocUnique(".else_") : nullptr;
@@ -534,7 +532,7 @@ antlrcpp::Any IRVisitor::visitIf_stmt(ifccParser::If_stmtContext *ctx)
 
     // Then
     currentCFG->setCurrentBasicBloc(thenBloc);
-    visit(ctx->stmt(0));
+    visit(ctx->branch_body());
     if (currentCFG->getCurrentBasicBloc()->getExitTrue() == nullptr &&
         currentCFG->getCurrentBasicBloc()->getExitFalse() == nullptr) {
         currentCFG->getCurrentBasicBloc()->setExitTrue(exitBloc);
@@ -543,7 +541,7 @@ antlrcpp::Any IRVisitor::visitIf_stmt(ifccParser::If_stmtContext *ctx)
     // Else (si présent)
     if (hasElse) {
         currentCFG->setCurrentBasicBloc(elseBloc);
-        visit(ctx->stmt(1));
+        visit(ctx->else_branch());
         if (currentCFG->getCurrentBasicBloc()->getExitTrue() == nullptr &&
             currentCFG->getCurrentBasicBloc()->getExitFalse() == nullptr) {
             currentCFG->getCurrentBasicBloc()->setExitTrue(exitBloc);

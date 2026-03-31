@@ -36,11 +36,14 @@ CONTINUE : 'continue' ;
 SWITCH : 'switch' ;
 CASE : 'case' ;
 DEFAULT : 'default' ;
+IF : 'if' ;
+ELSE : 'else' ;
 
 block : '{' stmt* '}' ;
 
-// Allow 'else if' by using parser-level sequencing; no special token needed.
-if_stmt: 'if' '(' rhs ')' stmt ('else' stmt)? ;
+if_stmt : IF '(' rhs ')' branch_body (ELSE else_branch)? ;
+branch_body : return_stmt | declaration_stmt | assign_stmt | while_stmt | switch_stmt | break_stmt | continue_stmt | putchar_stmt | empty_stmt | block ;
+else_branch : if_stmt | branch_body ;
 
 lvalue
     : ID # Lvalue_id
