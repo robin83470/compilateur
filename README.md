@@ -109,6 +109,7 @@ Ce script :
 - Déclaration avec initialisation : `int a = 5;`
 - Déclarations multiples : `int a, b = 3;`
 - Affectation : `a = expr;`
+- Affectations composées : `+=`, `-=`, `*=`, `/=`, `%=`
 
 ### Expressions arithmétiques
 - Constantes entières : `42`
@@ -131,6 +132,7 @@ Ce script :
 
 ### Instructions
 - `return expr;`
+- `a op= expr;` avec `op` dans `+`, `-`, `*`, `/`, `%`
 - `if (...) { ... }`
 - `if (...) { ... } else if (...) { ... } else { ... }`
 - `while (...) { ... }`
