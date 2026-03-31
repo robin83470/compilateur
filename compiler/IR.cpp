@@ -79,10 +79,10 @@ void IRInstrCopy::printDebug(std::ostream& out) const {
 void IRInstrCopy::genX86(std::ostream& out) const {
     int offsetSrc = parentBloc->getCFG()->getSymbolTable()->getOffset(src);
     int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
-    
+
     std::string srcType = parentBloc->getCFG()->getSymbolTable()->getType(src);
     bool isPointer = parentBloc->getCFG()->getSymbolTable()->isPointerType(srcType);
-    
+
     // Copie 64 bits pour les pointeurs et 32 bits pour les int
     if (isPointer) {
         out << "    movq " << offsetSrc << "(%rbp), %rax\n";
@@ -96,10 +96,10 @@ void IRInstrCopy::genX86(std::ostream& out) const {
 void IRInstrCopy::genARM(std::ostream& out) const {
     int offsetSrc = parentBloc->getCFG()->getSymbolTable()->getOffset(src);
     int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
-    
+
     std::string srcType = parentBloc->getCFG()->getSymbolTable()->getType(src);
     bool isPointer = parentBloc->getCFG()->getSymbolTable()->isPointerType(srcType);
-    
+
     // Copie 64 bits pour les pointeurs et 32 bits pour les int
     if (isPointer) {
         arm_codegen::emitLoadWFromOffset(out, offsetSrc, "x9");
@@ -662,12 +662,12 @@ void IRInstrGetParam::printDebug(std::ostream& out) const {
 
 void IRInstrGetParam::genX86(std::ostream& out) const {
     static const std::vector<std::string> reg32 = {"%edi", "%esi", "%edx", "%ecx", "%r8d", "%r9d"};
-    // Registres 64 bits 
+    // Registres 64 bits
     static const std::vector<std::string> reg64 = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
 
     if (paramIndex < 6) {
         int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
-        
+
         int size = parentBloc->getCFG()->getSymbolTable()->getTotalSize();
 
 
@@ -709,14 +709,14 @@ void IRInstrRet::genX86(std::ostream& out) const {
     out << "    movl " << offset << "(%rbp), %eax" << "\n";
 
     std::string funcName = parentBloc->getCFG()->getBlocs()[0]->getLabel();
-    
+
     out << "    jmp ." << funcName << "_exit" << "\n";
 }
 
 void IRInstrRet::genARM(std::ostream& out) const {
     int offset = parentBloc->getCFG()->getSymbolTable()->getOffset(src);
     out << "    ldr x0, [x29, #" << offset << "]\n";
-    
+
     std::string funcName = parentBloc->getCFG()->getBlocs()[0]->getLabel();
     out << "    b ." << funcName << "_exit\n";
 }
@@ -725,9 +725,9 @@ void IRInstrRet::genARM(std::ostream& out) const {
 //  IRInstrCall : dest = funcName(args...)
 // ═══════════════════════════════════════════════════════════════════
 
-IRInstrCall::IRInstrCall(IRBasicBloc* parentBloc, 
-                         const std::string& dest, 
-                         const std::string& funcName, 
+IRInstrCall::IRInstrCall(IRBasicBloc* parentBloc,
+                         const std::string& dest,
+                         const std::string& funcName,
                          const std::vector<std::string>& args)
     : IRInstruction(parentBloc), dest(dest), funcName(funcName), args(args) {}
 
@@ -765,7 +765,7 @@ void IRInstrCall::genARM(std::ostream& out) const {
         out << "    ldr " << armRegs[i] << ", [x29, #" << offsetArg << "]\n";
     }
 
-    out << "    bl " << funcName << "\n";
+    out << "    bl _" << funcName << "\n";
 
     int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
     out << "    str x0, [x29, #" << offsetDest << "]\n";
