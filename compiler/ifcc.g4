@@ -9,10 +9,11 @@ function : 'int' ID '(' paramList? ')' '{' stmt* '}'
 
 paramList : 'int' ID (',' 'int' ID)* ;
 
-stmt : return_stmt | declaration_stmt | assign_stmt | while_stmt | if_stmt | switch_stmt | break_stmt | continue_stmt | empty_stmt | block ;
+stmt : return_stmt | declaration_stmt | assign_stmt | while_stmt | if_stmt | switch_stmt | break_stmt | continue_stmt | putchar_stmt | empty_stmt | block ;
 
 empty_stmt : ';' ;
 expr_stmt : rhs ';' ;
+putchar_stmt : PUTCHAR '(' io_arg ')' ';' ;
 return_stmt : RETURN rhs ';' ;
 
 declarator : pointer_prefix? ID (EQUAL rhs)? ;

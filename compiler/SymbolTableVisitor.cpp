@@ -221,6 +221,16 @@ antlrcpp::Any SymbolTableVisitor::visitExpr_putchar(ifccParser::Expr_putcharCont
     return std::string("int");
 }
 
+antlrcpp::Any SymbolTableVisitor::visitPutchar_stmt(ifccParser::Putchar_stmtContext *ctx) {
+    auto* ioArg = ctx->io_arg();
+    if (ioArg->ID()) {
+        std::string varName = ioArg->ID()->getText();
+        checkVariableUsed(varName);
+        requireType(symbolTable.getType(varName), "int", "argument de putchar");
+    }
+    return 0;
+}
+
 antlrcpp::Any SymbolTableVisitor::visitExpr_addrof(ifccParser::Expr_addrofContext *ctx) {
     std::string baseType = std::any_cast<std::string>(visit(ctx->lvalue()));
     return addPointerLevel(baseType);

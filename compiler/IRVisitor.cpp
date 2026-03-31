@@ -710,6 +710,31 @@ antlrcpp::Any IRVisitor::visitExpr_putchar(ifccParser::Expr_putcharContext* ctx)
     return tmp;
 }
 
+antlrcpp::Any IRVisitor::visitPutchar_stmt(ifccParser::Putchar_stmtContext* ctx) {
+    std::string arg;
+    auto* bloc = currentCFG->getCurrentBasicBloc();
+    auto* ioArg = ctx->io_arg();
+
+    if (ioArg->CONST()) {
+        arg = currentCFG->newTemp();
+        bloc->addInstruction(new IRInstrConst(bloc, arg, std::stoi(ioArg->CONST()->getText())));
+    } else if (ioArg->CHARCONST()) {
+        std::string text = ioArg->CHARCONST()->getText();
+        int val = text[text[1] == '\\' ? 2 : 1];
+        arg = currentCFG->newTemp();
+        bloc->addInstruction(new IRInstrConst(bloc, arg, val));
+    } else if (ioArg->ID()) {
+        arg = ioArg->ID()->getText();
+    } else {
+        arg = currentCFG->newTemp();
+        bloc->addInstruction(new IRInstrGetchar(bloc, arg));
+    }
+
+    std::string tmp = currentCFG->newTemp();
+    bloc->addInstruction(new IRInstrPutchar(bloc, tmp, arg));
+    return 0;
+}
+
 antlrcpp::Any IRVisitor::visitExpr_funcCall(ifccParser::Expr_funcCallContext* ctx) {
     std::string funcName = ctx->ID()->getText();
     std::vector<std::string> args;
