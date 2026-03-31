@@ -704,11 +704,11 @@ void IRInstrGetParam::genX86(std::ostream& out) const {
 
 void IRInstrGetParam::genARM(std::ostream& out) const {
     // Registres pour ARM64
-    static const std::vector<std::string> armRegs = {"x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7"};
+    static const std::vector<const char*> armRegs = {"w0", "w1", "w2", "w3", "w4", "w5", "w6", "w7"};
 
     if (paramIndex < 8) {
         int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
-        out << "    str " << armRegs[paramIndex] << ", [x29, #" << offsetDest << "]\n";
+        arm_codegen::emitStoreWToOffset(out, offsetDest, armRegs[paramIndex]);
     } else {
         out << "    # Error: Parameter index " << paramIndex << " > 8 not supported\n";
     }
@@ -736,7 +736,7 @@ void IRInstrRet::genX86(std::ostream& out) const {
 
 void IRInstrRet::genARM(std::ostream& out) const {
     int offset = parentBloc->getCFG()->getSymbolTable()->getOffset(src);
-    out << "    ldr x0, [x29, #" << offset << "]\n";
+    arm_codegen::emitLoadWFromOffset(out, offset, "w0");
 
     std::string funcName = parentBloc->getCFG()->getBlocs()[0]->getLabel();
     out << "    b ." << funcName << "_exit\n";
@@ -779,17 +779,17 @@ void IRInstrCall::genX86(std::ostream& out) const {
 
 void IRInstrCall::genARM(std::ostream& out) const {
     // Registres pour ARM64
-    static const std::vector<std::string> armRegs = {"x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7"};
+    static const std::vector<const char*> armRegs = {"w0", "w1", "w2", "w3", "w4", "w5", "w6", "w7"};
 
     for (size_t i = 0; i < args.size() && i < 8; i++) {
         int offsetArg = parentBloc->getCFG()->getSymbolTable()->getOffset(args[i]);
-        out << "    ldr " << armRegs[i] << ", [x29, #" << offsetArg << "]\n";
+        arm_codegen::emitLoadWFromOffset(out, offsetArg, armRegs[i]);
     }
 
     out << "    bl _" << funcName << "\n";
 
     int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
-    out << "    str x0, [x29, #" << offsetDest << "]\n";
+    arm_codegen::emitStoreWToOffset(out, offsetDest, "w0");
 }
 
 // ═══════════════════════════════════════════════════════════════════
