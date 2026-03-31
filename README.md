@@ -73,7 +73,7 @@ Suites stables (quasi toutes vertes) :
 
 - Base : retours, declarations, affectations simples
 - Arithmetique : priorites/associativite/unaires
-- While, if, commentaires
+- While, structures conditionnelles `if`, `if/else`, `else if`, imbrication de conditions, commentaires
 - Appels I/O de base : getchar et putchar avec argument (`putchar(expr);`)
 - Affectation composee dans ValidPrograms
 - Une grande partie de switch, pointeurs, comparaisons binaires
@@ -195,6 +195,11 @@ Contractuel aujourd hui :
 En cours (non contractuel) :
 
 - Contenu de NotImplementedYet, notamment fonctions avancees, operateurs paresseux complexes, certains cas switch, print_int, et variantes supplementaires.
+
+Note sur les conditions :
+
+- Les formes `if (...) stmt;`, `if (...) { ... }`, `if (...) ... else ...` et `else if (...) ...` sont prises en charge.
+- Les conditions imbriquees et l'utilisation de conditions a l'interieur de blocs ou de boucles sont egalement couvertes par les tests valides actuels.
 
 ## 10. Pistes de correction prioritaires
 
