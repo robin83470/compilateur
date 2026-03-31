@@ -297,17 +297,23 @@ antlrcpp::Any SymbolTableVisitor::visitSwitch_stmt(ifccParser::Switch_stmtContex
     requireType(switchType, "int", "expression pour switch");
 
     std::set<int> seenCaseValues;
-    for (auto* switchCase : ctx->switch_case()) {
-        int caseValue = std::any_cast<int>(visit(switchCase->switch_value()));
-        if (seenCaseValues.count(caseValue) > 0) {
-            throw std::runtime_error("Erreur : cette valeur de case est déjà rencontrée dans le switch");
-        }
-        seenCaseValues.insert(caseValue);
-        visit(switchCase);
-    }
+    bool seenDefault = false;
 
-    if (ctx->switch_default() != nullptr) {
-        visit(ctx->switch_default());
+    for (auto* clause : ctx->switch_clause()) {
+        if (auto* switchCase = clause->switch_case()) {
+            int caseValue = std::any_cast<int>(visit(switchCase->switch_value()));
+            if (seenCaseValues.count(caseValue) > 0) {
+                throw std::runtime_error("Erreur : cette valeur de case est déjà rencontrée dans le switch");
+            }
+            seenCaseValues.insert(caseValue);
+            visit(switchCase);
+        } else {
+            if (seenDefault) {
+                throw std::runtime_error("Erreur : plusieurs labels default dans le meme switch");
+            }
+            seenDefault = true;
+            visit(clause->switch_default());
+        }
     }
 
     return 0;
