@@ -118,12 +118,14 @@ Ce script :
 - Opérateurs binaires arithmétiques : `+`, `-`, `*`, `/`, `%`
 - Opérateurs de comparaison : `<`, `<=`, `>`, `>=`, `==`, `!=`
 - Opérateurs binaires bit à bit : `&`, `|`, `^`
+- Opérateurs logiques paresseux : `&&`, `||`
 - Parenthèses : `(expr)`
 - Priorités des opérateurs (selon la norme C) :
   - `!` et les unaires avant les binaires
   - `*`, `/`, `%` avant `+`, `-`
   - comparaisons et égalités après arithmétique
   - `&`, `^`, `|` ensuite
+  - `&&` puis `||`
   - Associativité à gauche par défaut
 - Expressions imbriquées
 
@@ -171,7 +173,6 @@ Ce script :
 - Seuls les builtins `getchar()` et `putchar(...)` sont pris en charge pour l'instant
 - Pas de tableaux, pointeurs, structures
 - Pas de `for`, `do ... while`
-- Pas d'opérateurs logiques court-circuit (`&&`, `||`)
 - `putchar` ne prend pas encore en charge une expression arithmétique générale comme argument
 
 

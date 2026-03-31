@@ -52,6 +52,45 @@ private:
     std::string src;
 };
 
+class IRInstrAddrOf : public IRInstruction {
+    public:
+        IRInstrAddrOf(IRBasicBloc* parentBloc,
+            const std::string& destPtr,
+            const std::string& varName);
+        void printDebug(std::ostream& out) const override;
+        void genX86(std::ostream& out) const override;
+        void genARM(std::ostream& out) const override;
+    private:
+        std::string destPtr;
+        std::string varName;
+};
+
+class IRInstrLoadIndirect : public IRInstruction {
+    public:
+        IRInstrLoadIndirect(IRBasicBloc* parentBloc,
+            const std::string& dest,
+            const std::string& addrPtr);
+        void printDebug(std::ostream& out) const override;
+        void genX86(std::ostream& out) const override;
+        void genARM(std::ostream& out) const override;
+    private:
+        std::string dest;
+        std::string addrPtr;
+};
+
+class IRInstrStoreIndirect : public IRInstruction {
+    public:
+        IRInstrStoreIndirect(IRBasicBloc* parentBloc,
+            const std::string& src,
+            const std::string& addrPtr);
+        void printDebug(std::ostream& out) const override;
+        void genX86(std::ostream& out) const override;
+        void genARM(std::ostream& out) const override;
+    private:
+        std::string src;
+        std::string addrPtr;
+};
+
 //  IRInstrAdd : dest = lhs + rhs
 //  Exemple IR :  add dest lhs rhs
 class IRInstrAdd : public IRInstruction {
@@ -315,4 +354,46 @@ public:
 private:
     std::string dest;
     int paramIndex; // index des paramètres
+};
+
+// IRInstrLoadAddr : dest = &src
+class IRInstrLoadAddr : public IRInstruction {
+public:
+    IRInstrLoadAddr(IRBasicBloc* parentBloc, const std::string& dest, const std::string& src);
+
+    void printDebug(std::ostream& out) const override;
+    void genX86(std::ostream& out) const override;
+    void genARM(std::ostream& out) const override;
+
+private:
+    std::string dest;
+    std::string src;
+};
+
+// IRInstrLoadDeref : dest = *src
+class IRInstrLoadDeref : public IRInstruction {
+public:
+    IRInstrLoadDeref(IRBasicBloc* parentBloc, const std::string& dest, const std::string& src);
+
+    void printDebug(std::ostream& out) const override;
+    void genX86(std::ostream& out) const override;
+    void genARM(std::ostream& out) const override;
+
+private:
+    std::string dest;
+    std::string src;
+};
+
+// IRInstrStoreDeref : *dest = src
+class IRInstrStoreDeref : public IRInstruction {
+public:
+    IRInstrStoreDeref(IRBasicBloc* parentBloc, const std::string& dest, const std::string& src);
+
+    void printDebug(std::ostream& out) const override;
+    void genX86(std::ostream& out) const override;
+    void genARM(std::ostream& out) const override;
+
+private:
+    std::string dest;
+    std::string src;
 };

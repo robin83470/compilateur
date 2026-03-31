@@ -18,7 +18,7 @@ return_stmt : RETURN rhs ';' ;
 declarator : pointer_prefix? ID (EQUAL rhs)? ;
 pointer_prefix : '*' pointer_prefix? ;
 declaration_stmt : 'int' declarator (',' declarator)* ';' ;
-assign_stmt : lvalue EQUAL rhs ';' ;
+assign_stmt : lvalue assign_op rhs ';' ;
 while_stmt : WHILE '(' rhs ')' block ;
 break_stmt : BREAK ';' ;
 continue_stmt : CONTINUE ';' ;
@@ -27,7 +27,7 @@ switch_case : CASE switch_value ':' stmt* ;
 switch_default : DEFAULT ':' stmt* ;
 switch_value : CONST | CHARCONST ;
 
-
+assign_op : EQUAL | PLUSEQ | MINUSEQ | MULEQ | DIVEQ | MODEQ ;
 WHILE : 'while' ;
 BREAK : 'break' ;
 CONTINUE : 'continue' ;
@@ -37,9 +37,8 @@ DEFAULT : 'default' ;
 
 block : '{' stmt* '}' ;
 
-ELSEIF : 'else' [ \t\r\n]+ 'if' ;
-
-if_stmt: 'if' '(' rhs ')' block (ELSEIF '(' rhs ')' block)* ('else' block)? #if_elsifelse ;
+// Allow 'else if' by using parser-level sequencing; no special token needed.
+if_stmt: 'if' '(' rhs ')' stmt ('else' stmt)? ;
 
 lvalue
     : ID # Lvalue_id
@@ -55,6 +54,8 @@ rhs :
     | rhs ('+'|'-') rhs # Expr_plusmoins
     | rhs (CMPLE|CMPGE|CMPLT|CMPGT) rhs # Expr_comparison
     | rhs (CMPEQ|CMPNE) rhs            # Expr_equality
+    | rhs LAND rhs                     # Expr_land
+    | rhs LOR rhs                      # Expr_lor
     | rhs BAND rhs                     # Expr_and
     | rhs BOR rhs                      # Expr_or
     | rhs BXOR rhs                     # Expr_xor
@@ -80,6 +81,11 @@ COMMENT : '/*' .*? '*/' -> skip ;
 DIRECTIVE : '#' .*? '\n' -> skip ;
 WS    : [ \t\r\n] -> channel(HIDDEN);
 ID : [a-zA-Z_][a-zA-Z0-9_]* ;
+PLUSEQ : '+=' ;
+MINUSEQ : '-=' ;
+MULEQ : '*=' ;
+DIVEQ : '/=' ;
+MODEQ : '%=' ;
 EQUAL : '=' ;
 INCR  : '++' ;
 DECR  : '--' ;
@@ -91,6 +97,8 @@ CMPLT : '<' ;
 CMPGT : '>' ;
 CMPEQ : '==' ;
 CMPNE : '!=' ;
+LAND : '&&' ;
+LOR : '||' ;
 BAND : '&' ;
 BXOR : '^' ;
 BOR  : '|' ;

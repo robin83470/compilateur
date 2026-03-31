@@ -19,6 +19,26 @@ int parseCharLiteralValue(const std::string& text) {
     }
     return text[1];
 }
+
+std::string buildCompoundAssignmentValue(IRControlFlowGraph* cfg,IRBasicBloc* bloc, const std::string& op,
+                               const std::string& lhs,
+                               const std::string& rhs) {
+    std::string tmp = cfg->newTemp();
+    if (op == "+=") {
+        bloc->addInstruction(new IRInstrAdd(bloc, tmp, lhs, rhs));
+    } else if (op == "-=") {
+        bloc->addInstruction(new IRInstrSub(bloc, tmp, lhs, rhs));
+    } else if (op == "*=") {
+        bloc->addInstruction(new IRInstrMult(bloc, tmp, lhs, rhs));
+    } else if (op == "/=") {
+        bloc->addInstruction(new IRInstrDiv(bloc, tmp, lhs, rhs));
+    } else if (op == "%=") {
+        bloc->addInstruction(new IRInstrMod(bloc, tmp, lhs, rhs));
+    } else {
+        throw std::runtime_error("L'opérateur n'est pas supporté: " + op);
+    }
+    return tmp;
+}
 }
 
 IRVisitor::IRVisitor(SymbolTable* symbolTable)
@@ -120,8 +140,14 @@ antlrcpp::Any IRVisitor::visitDeclaration_stmt(ifccParser::Declaration_stmtConte
 
 antlrcpp::Any IRVisitor::visitDeclarator(ifccParser::DeclaratorContext* ctx) {
     std::string varName = ctx->ID()->getText();
+    int pointerDepth = 0;
 
-    symbolTable->addSymbol(varName);
+    if (ctx->pointer_prefix() != nullptr) {
+        pointerDepth = std::any_cast<int>(visit(ctx->pointer_prefix()));
+    }
+
+    std::string varType = "int" + std::string(pointerDepth, '*');
+    symbolTable->addSymbol(varName, varType);
 
     if (ctx->EQUAL()) {
         std::string tmp = std::any_cast<std::string>(visit(ctx->rhs()));
@@ -132,26 +158,73 @@ antlrcpp::Any IRVisitor::visitDeclarator(ifccParser::DeclaratorContext* ctx) {
 }
 
 antlrcpp::Any IRVisitor::visitPointer_prefix(ifccParser::Pointer_prefixContext* ctx) {
-    // The symbol table visitor already resolves declaration types.
-    // IR generation does not need pointer depth at this stage.
-    return 0;
+    if (ctx->pointer_prefix() == nullptr) {
+    return 1;
+}
+
+    int subDepth = std::any_cast<int>(visit(ctx->pointer_prefix()));
+    return subDepth + 1;
 }
 
 antlrcpp::Any IRVisitor::visitAssign_stmt(ifccParser::Assign_stmtContext* ctx) {
-    std::string varName = std::any_cast<std::string>(visit(ctx->lvalue()));
-    std::string tmp = std::any_cast<std::string>(visit(ctx->rhs()));
+    std::string lhsDesc = std::any_cast<std::string>(visit(ctx->lvalue()));
+    std::string rhsTmp = std::any_cast<std::string>(visit(ctx->rhs()));
+    std::string op = ctx->assign_op()->getText();
     auto* bloc = currentCFG->getCurrentBasicBloc();
-    bloc->addInstruction(new IRInstrCopy(bloc, varName, tmp));
+
+
+    // Cas simple : a = b : on a déjà évalué rhs dans rhsTmp et il faut juste l'écrire dans la destination
+    if (op == "=") {
+        if (lhsDesc.rfind("var:", 0) == 0) {
+            std::string varName = lhsDesc.substr(4);
+            bloc->addInstruction(new IRInstrCopy(bloc, varName, rhsTmp));
+        } else if (lhsDesc.rfind("ptr:", 0) == 0) {
+            std::string addrPtr = lhsDesc.substr(4);
+            bloc->addInstruction(new IRInstrStoreIndirect(bloc, rhsTmp, addrPtr));
+        } else {
+            throw std::runtime_error("Unexpected lvalue descriptor in assignment: " + lhsDesc);
+        }
+
+        return 0;
+    }
+
+    // Cas des affectations composées : a op= b   <=>   a = a op b
+    // Récupérer l'ancienne valeur de la destination a
+    // Calculer et réecrire le résultat du calcul dans la même destination
+
+    if (lhsDesc.rfind("var:", 0) == 0) {
+        // Si on a une simple variable
+        std::string varName = lhsDesc.substr(4);
+        std::string resultTmp = buildCompoundAssignmentValue(currentCFG, bloc, op, varName, rhsTmp); // resultTmp = a op b
+        bloc->addInstruction(new IRInstrCopy(bloc, varName, resultTmp)); // on réécrit la valeur calculée dans a
+    } else if (lhsDesc.rfind("ptr:", 0) == 0) {
+        // Si on doit déréférencer le résultat
+        std::string addrPtr = lhsDesc.substr(4);
+        std::string lhsTmp = currentCFG->newTemp();
+        bloc->addInstruction(new IRInstrLoadIndirect(bloc, lhsTmp, addrPtr)); // charger l'ancienne valeur de *p dans un temp
+        std::string resultTmp = buildCompoundAssignmentValue(currentCFG, bloc, op, lhsTmp, rhsTmp); // resultTmp = lhsTmp op rhsTmp
+        bloc->addInstruction(new IRInstrStoreIndirect(bloc, resultTmp, addrPtr)); // stocker le résultat à l'adresse addrPtr
+    } else {
+        throw std::runtime_error("Unexpected lvalue descriptor in assignment: " + lhsDesc);
+    }
+
     return 0;
 }
 
 antlrcpp::Any IRVisitor::visitLvalue_id(ifccParser::Lvalue_idContext* ctx) {
-    return ctx->ID()->getText();
+    return std::string("var:") + ctx->ID()->getText();
 }
 
 antlrcpp::Any IRVisitor::visitLvalue_deref(ifccParser::Lvalue_derefContext* ctx) {
-    (void)ctx;
-    throw std::runtime_error("Pointer dereference assignment is not implemented in IR yet.");
+    std::string innerDesc = std::any_cast<std::string>(visit(ctx->lvalue()));
+
+    // Common case: *p where p is a variable containing an address.
+    if (innerDesc.rfind("var:", 0) == 0) {
+        return std::string("ptr:") + innerDesc.substr(4);
+    }
+
+    // Nested dereference (e.g. **pp) needs pointer-sized indirect loads.
+    throw std::runtime_error("Nested pointer lvalue dereference is not implemented in IR yet.");
 }
 
 antlrcpp::Any IRVisitor::visitLvalue_parenthese(ifccParser::Lvalue_parentheseContext* ctx) {
@@ -305,13 +378,31 @@ antlrcpp::Any IRVisitor::visitExpr_parenthese(ifccParser::Expr_parentheseContext
 }
 
 antlrcpp::Any IRVisitor::visitExpr_addrof(ifccParser::Expr_addrofContext* ctx) {
-    (void)ctx;
-    throw std::runtime_error("Address-of operator is not implemented in IR yet.");
+    std::string lvalueDesc = std::any_cast<std::string>(visit(ctx->lvalue()));
+
+    // &x -> Crée un pointeur temporaire
+    if (lvalueDesc.rfind("var:", 0) == 0) {
+        std::string varName = lvalueDesc.substr(4);
+        std::string tmpPtr = currentCFG->newTemp("int*");
+        auto* bloc = currentCFG->getCurrentBasicBloc();
+        bloc->addInstruction(new IRInstrAddrOf(bloc, tmpPtr, varName));
+        return tmpPtr;
+    }
+
+    // &*p == p
+    if (lvalueDesc.rfind("ptr:", 0) == 0) {
+        return lvalueDesc.substr(4);
+    }
+
+    throw std::runtime_error("Unexpected lvalue descriptor for address-of: " + lvalueDesc);
 }
 
 antlrcpp::Any IRVisitor::visitExpr_deref(ifccParser::Expr_derefContext* ctx) {
-    (void)ctx;
-    throw std::runtime_error("Pointer dereference expression is not implemented in IR yet.");
+    std::string addrPtr = std::any_cast<std::string>(visit(ctx->rhs()));
+    std::string tmp = currentCFG->newTemp();
+    auto* bloc = currentCFG->getCurrentBasicBloc();
+    bloc->addInstruction(new IRInstrLoadIndirect(bloc, tmp, addrPtr));
+    return tmp;
 }
 
 antlrcpp::Any IRVisitor::visitExpr_comparison(ifccParser::Expr_comparisonContext* ctx) {
@@ -414,72 +505,37 @@ antlrcpp::Any IRVisitor::visitWhile_stmt(ifccParser::While_stmtContext* ctx) {
 
 
 
-antlrcpp::Any IRVisitor::visitIf_elsifelse(ifccParser::If_elsifelseContext *ctx)
+antlrcpp::Any IRVisitor::visitIf_stmt(ifccParser::If_stmtContext *ctx)
 {
     int ifId = ifCounter++;
 
     IRBasicBloc* currentTestBloc = currentCFG->getCurrentBasicBloc();
 
-    size_t nConds = ctx->rhs().size();
-    size_t nBlocks = ctx->block().size();
-    bool hasElse = (nBlocks > nConds);
+    // Nouvelle grammaire: une seule condition, une seule instruction/ bloc then, optionnellement un else
+    bool hasElse = (ctx->stmt().size() > 1);
 
-    std::vector<IRBasicBloc*> thenBlocs;
-    for (size_t i = 0; i < nConds; i++) {
-        thenBlocs.push_back(
-        currentCFG->addBasicBlocUnique(".then_")
-        );
-    }
-
-    std::vector<IRBasicBloc*> nextTestBlocs;
-    for (size_t i = 1; i < nConds; i++) {
-        nextTestBlocs.push_back(currentCFG->addBasicBlocUnique(".test_"));
-    }
-
-    IRBasicBloc* elseBloc = nullptr;
-    if (hasElse) {
-        elseBloc = currentCFG->addBasicBlocUnique(".else_");
-    }
-
+    IRBasicBloc* thenBloc = currentCFG->addBasicBlocUnique(".then_");
+    IRBasicBloc* elseBloc = hasElse ? currentCFG->addBasicBlocUnique(".else_") : nullptr;
     IRBasicBloc* exitBloc = currentCFG->addBasicBlocUnique(".if_exit_");
 
-    for (size_t i = 0; i < nConds; i++) {
-        currentCFG->setCurrentBasicBloc(currentTestBloc);
+    // Test
+    std::string testVarName = std::any_cast<std::string>(visit(ctx->rhs()));
+    currentTestBloc->setTestVarName(testVarName);
+    currentTestBloc->setExitTrue(thenBloc);
+    currentTestBloc->setExitFalse(hasElse ? elseBloc : exitBloc);
 
-        std::string testVarName = std::any_cast<std::string>(visit(ctx->rhs(i)));
-
-        IRBasicBloc* falseDest = nullptr;
-        if (i + 1 < nConds) {
-            falseDest = nextTestBlocs[i];
-        } else if (hasElse) {
-            falseDest = elseBloc;
-        } else {
-            falseDest = exitBloc;
-        }
-
-        currentTestBloc->setTestVarName(testVarName);
-        currentTestBloc->setExitTrue(thenBlocs[i]);
-        currentTestBloc->setExitFalse(falseDest);
-
-        // Bloc then / else-if
-        currentCFG->setCurrentBasicBloc(thenBlocs[i]);
-        visit(ctx->block(i));
-
-        // Ne relier à exit que si le bloc courant n'a pas déjà une sortie terminale
-        if (currentCFG->getCurrentBasicBloc()->getExitTrue() == nullptr &&
-            currentCFG->getCurrentBasicBloc()->getExitFalse() == nullptr) {
-            currentCFG->getCurrentBasicBloc()->setExitTrue(exitBloc);
-        }
-
-        if (i + 1 < nConds) {
-            currentTestBloc = nextTestBlocs[i];
-        }
+    // Then
+    currentCFG->setCurrentBasicBloc(thenBloc);
+    visit(ctx->stmt(0));
+    if (currentCFG->getCurrentBasicBloc()->getExitTrue() == nullptr &&
+        currentCFG->getCurrentBasicBloc()->getExitFalse() == nullptr) {
+        currentCFG->getCurrentBasicBloc()->setExitTrue(exitBloc);
     }
 
+    // Else (si présent)
     if (hasElse) {
         currentCFG->setCurrentBasicBloc(elseBloc);
-        visit(ctx->block(nBlocks - 1));
-
+        visit(ctx->stmt(1));
         if (currentCFG->getCurrentBasicBloc()->getExitTrue() == nullptr &&
             currentCFG->getCurrentBasicBloc()->getExitFalse() == nullptr) {
             currentCFG->getCurrentBasicBloc()->setExitTrue(exitBloc);
@@ -669,4 +725,105 @@ antlrcpp::Any IRVisitor::visitRhsList(ifccParser::RhsListContext* ctx) {
         args.push_back(arg);
     }
     return args;
+}
+
+antlrcpp::Any IRVisitor::visitExpr_land(ifccParser::Expr_landContext *ctx) {
+    // Variable contenant le résultat de (a && b)
+    std::string res = currentCFG->newTemp("int");
+
+    // Blocs pour évaluer la partie gauche (a) et la partie droite (b)
+    IRBasicBloc* evalLeftBloc  = currentCFG->getCurrentBasicBloc();
+    IRBasicBloc* evalRightBloc = currentCFG->addBasicBlocUnique("land_rhs");
+
+    // Blocs pour fixer le résultat à 0 si False et 1 si True
+    IRBasicBloc* setFalseBloc  = currentCFG->addBasicBlocUnique("land_false");
+    IRBasicBloc* setTrueBloc   = currentCFG->addBasicBlocUnique("land_true");
+
+    // Bloc où on continue après l'expression
+    IRBasicBloc* afterExprBloc = currentCFG->addBasicBlocUnique("land_after");
+
+    // Visiter l'expression de gauche a
+    std::string leftVar = std::any_cast<std::string>(visit(ctx->rhs(0)));
+
+    // Si l'évaluation de a donne faux, on saute directement vers le bloc false sans évaluer b, sinon on évalue l'expression de droite b
+    evalLeftBloc->setTestVarName(leftVar);
+    evalLeftBloc->setExitTrue(evalRightBloc);
+    evalLeftBloc->setExitFalse(setFalseBloc);
+
+    // On bascule dans le bloc pour évaluer l'expression b
+    currentCFG->setCurrentBasicBloc(evalRightBloc);
+
+    std::string rightVar = std::any_cast<std::string>(visit(ctx->rhs(1)));
+
+    // Si l'évaluation de b donne faux, on saute vers le bloc false sinon vers true
+    evalRightBloc->setTestVarName(rightVar);
+    evalRightBloc->setExitTrue(setTrueBloc);
+    evalRightBloc->setExitFalse(setFalseBloc);
+
+
+    // Bloc résultat faux (res = 0)
+    currentCFG->setCurrentBasicBloc(setFalseBloc);
+    setFalseBloc->addInstruction(new IRInstrConst(setFalseBloc, res, 0));
+    setFalseBloc->setExitTrue(afterExprBloc);
+
+    // Bloc résultat vrai (res = 1)
+    currentCFG->setCurrentBasicBloc(setTrueBloc);
+    setTrueBloc->addInstruction(new IRInstrConst(setTrueBloc, res, 1));
+    setTrueBloc->setExitTrue(afterExprBloc);
+
+    // Reprise vers la suite du programme après l'expression
+    currentCFG->setCurrentBasicBloc(afterExprBloc);
+
+    return res;
+}
+
+antlrcpp::Any IRVisitor::visitExpr_lor(ifccParser::Expr_lorContext *ctx) {
+    // Variable contenant le résultat de (a || b)
+    std::string res = currentCFG->newTemp("int");
+
+    // Blocs pour évaluer la partie gauche (a) et la partie droite (b)
+    IRBasicBloc* evalLeftBloc  = currentCFG->getCurrentBasicBloc();
+    IRBasicBloc* evalRightBloc = currentCFG->addBasicBlocUnique("land_rhs");
+
+    // Blocs pour fixer le résultat à 0 si False et 1 si True
+    IRBasicBloc* setFalseBloc  = currentCFG->addBasicBlocUnique("land_false");
+    IRBasicBloc* setTrueBloc   = currentCFG->addBasicBlocUnique("land_true");
+
+    // Bloc où on continue après l'expression
+    IRBasicBloc* afterExprBloc = currentCFG->addBasicBlocUnique("land_after");
+
+    // Visiter l'expression de gauche a
+    std::string leftVar = std::any_cast<std::string>(visit(ctx->rhs(0)));
+
+    // Si l'évaluation de a donne vrai, on saute directement vers le bloc true sans évaluer b, sinon on évalue l'expression de droite b
+    evalLeftBloc->setTestVarName(leftVar);
+    evalLeftBloc->setExitTrue(setTrueBloc);
+    evalLeftBloc->setExitFalse(evalRightBloc);
+
+    // On bascule dans le bloc pour évaluer l'expression b
+    currentCFG->setCurrentBasicBloc(evalRightBloc);
+    std::string rightVar = std::any_cast<std::string>(visit(ctx->rhs(1)));
+
+
+
+    // Si l'évaluation de b donne vrai, on saute vers le bloc true sinon vers le bloc false
+    evalRightBloc->setTestVarName(rightVar);
+    evalRightBloc->setExitTrue(setTrueBloc);
+    evalRightBloc->setExitFalse(setFalseBloc);
+
+
+    // Bloc résultat faux (res = 0)
+    currentCFG->setCurrentBasicBloc(setFalseBloc);
+    setFalseBloc->addInstruction(new IRInstrConst(setFalseBloc, res, 0));
+    setFalseBloc->setExitTrue(afterExprBloc);
+
+    // Bloc résultat vrai (res = 1)
+    currentCFG->setCurrentBasicBloc(setTrueBloc);
+    setTrueBloc->addInstruction(new IRInstrConst(setTrueBloc, res, 1));
+    setTrueBloc->setExitTrue(afterExprBloc);
+
+    // Reprise vers la suite du programme après l'expression
+    currentCFG->setCurrentBasicBloc(afterExprBloc);
+
+    return res;
 }
