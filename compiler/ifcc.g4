@@ -4,8 +4,7 @@ axiom : prog EOF ;
 
 prog : function* ;
 
-function : 'int' ID '(' paramList? ')' '{' stmt* '}'
-         | 'int' 'main' '(' ')' '{' stmt* '}' ;
+function : 'int' ID '(' paramList? ')' '{' stmt* '}' ;
 
 paramList : 'int' ID (',' 'int' ID)* ;
 
@@ -42,7 +41,7 @@ ELSE : 'else' ;
 block : '{' stmt* '}' ;
 
 if_stmt : IF '(' rhs ')' branch_body (ELSE else_branch)? ;
-branch_body : return_stmt | declaration_stmt | assign_stmt | while_stmt | switch_stmt | break_stmt | continue_stmt | putchar_stmt | empty_stmt | block ;
+branch_body : return_stmt | assign_stmt | while_stmt | switch_stmt | break_stmt | continue_stmt | putchar_stmt | empty_stmt | block ;
 else_branch : if_stmt | branch_body ;
 
 lvalue

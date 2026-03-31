@@ -41,8 +41,8 @@ std::string buildCompoundAssignmentValue(IRControlFlowGraph* cfg,IRBasicBloc* bl
 }
 }
 
-IRVisitor::IRVisitor(SymbolTable* symbolTable)
-    : symbolTable(symbolTable) {}
+IRVisitor::IRVisitor(SymbolTable* symbolTable, const std::map<std::string, SymbolTable>& funcTables)
+    : symbolTable(symbolTable), functionSymbolTables(funcTables) {}
 
 IRControlFlowGraph* IRVisitor::buildIr(antlr4::tree::ParseTree* tree) {
     currentCFG = new IRControlFlowGraph(symbolTable);
@@ -55,7 +55,7 @@ IRControlFlowGraph* IRVisitor::buildIr(antlr4::tree::ParseTree* tree) {
     epilogueBloc = currentCFG->addBasicBloc(".epilogue");
 
     // Revenir à .entry pour y mettre le code
-    currentCFG->setCurrentBasicBloc(currentCFG->getBlocs()[0]);
+    currentCFG->setCurrentBasicBloc(currentCFG->getBlocs()[0]); // ca revient à un IR vide
 
     visit(tree);
 
@@ -69,49 +69,7 @@ antlrcpp::Any IRVisitor::visitProg(ifccParser::ProgContext* ctx) {
     return 0;
 }
 
-antlrcpp::Any IRVisitor::visitFunction(ifccParser::FunctionContext* ctx) {
-    std::string funcName = ctx->ID() ? ctx->ID()->getText() : "main";
 
-    // === CRÉER UNE NOUVELLE SYMBOL TABLE POUR CETTE FONCTION ===
-    SymbolTable* oldSymbolTable = symbolTable;
-    symbolTable = new SymbolTable();
-
-    // === CRÉER UN NOUVEAU CFG AVEC LA NOUVELLE SYMBOL TABLE ===
-    IRControlFlowGraph* oldCFG = currentCFG;
-    currentCFG = new IRControlFlowGraph(symbolTable);
-
-    // === INITIALISER LE CFG ===
-    currentCFG->addBasicBloc(funcName + "_entry");
-    currentCFG->setCurrentBasicBloc(currentCFG->getBlocs()[0]);
-
-    symbolTable->addSymbol("!retval");
-    epilogueBloc = currentCFG->addBasicBloc("." + funcName + "_exit");
-
-    // === AJOUTER LES PARAMÈTRES ===
-    if (ctx->paramList()) {
-        auto* paramList = ctx->paramList();
-        size_t numParams = paramList->ID().size();
-
-        for (size_t i = 0; i < numParams; i++) {
-            std::string paramName = paramList->ID(i)->getText();
-            symbolTable->addSymbol(paramName);
-
-            auto* bloc = currentCFG->getCurrentBasicBloc();
-            bloc->addInstruction(new IRInstrGetParam(bloc, paramName, i));
-        }
-    }
-
-    // === VISITER LE CORPS ===
-    for (auto* stmt : ctx->stmt()) {
-        visit(stmt);
-    }
-    allFunctions.push_back({currentCFG, symbolTable});
-    // === RESTAURER L'ANCIENNE STATE ===
-    symbolTable = oldSymbolTable;
-    currentCFG = oldCFG;
-
-    return 0;
-}
 IRBasicBloc* IRVisitor::createDeadBlock(const std::string& prefix) {
     return currentCFG->addBasicBlocUnique(prefix);
 }
@@ -147,8 +105,8 @@ antlrcpp::Any IRVisitor::visitDeclarator(ifccParser::DeclaratorContext* ctx) {
     }
 
     std::string varType = "int" + std::string(pointerDepth, '*');
-    symbolTable->addSymbol(varName, varType);
-
+    // SymbolTableVisitor has already validated and recorded declarations.
+    // Keep addSymbol only for symbols not already present in the copied table.
     if (ctx->EQUAL()) {
         std::string tmp = std::any_cast<std::string>(visit(ctx->rhs()));
         auto* bloc = currentCFG->getCurrentBasicBloc();
@@ -407,7 +365,17 @@ antlrcpp::Any IRVisitor::visitExpr_addrof(ifccParser::Expr_addrofContext* ctx) {
 
 antlrcpp::Any IRVisitor::visitExpr_deref(ifccParser::Expr_derefContext* ctx) {
     std::string addrPtr = std::any_cast<std::string>(visit(ctx->rhs()));
-    std::string tmp = currentCFG->newTemp();
+
+    // Déterminer le type de la déréférence
+    std::string addrPtrType = currentCFG->getSymbolTable()->getType(addrPtr);
+    std::string resultType = "int"; // type par défaut
+
+    // Enlever un "*" du type pour obtenir le type du résultat
+    if (addrPtrType.length() > 0 && addrPtrType.back() == '*') {
+        resultType = addrPtrType.substr(0, addrPtrType.length() - 1);
+    }
+
+    std::string tmp = currentCFG->newTemp(resultType);
     auto* bloc = currentCFG->getCurrentBasicBloc();
     bloc->addInstruction(new IRInstrLoadIndirect(bloc, tmp, addrPtr));
     return tmp;
@@ -732,6 +700,37 @@ antlrcpp::Any IRVisitor::visitPutchar_stmt(ifccParser::Putchar_stmtContext* ctx)
 
     std::string tmp = currentCFG->newTemp();
     bloc->addInstruction(new IRInstrPutchar(bloc, tmp, arg));
+    return 0;
+}
+
+antlrcpp::Any IRVisitor::visitFunction(ifccParser::FunctionContext* ctx) {
+    std::string funcName = ctx->ID()->getText();
+
+    symbolTable = new SymbolTable(functionSymbolTables.at(funcName));
+
+    IRControlFlowGraph* oldCFG = currentCFG;
+    currentCFG = new IRControlFlowGraph(symbolTable);
+
+    currentCFG->addBasicBloc(funcName + "_entry");
+    currentCFG->setCurrentBasicBloc(currentCFG->getBlocs()[0]);
+
+    symbolTable->addSymbol("!retval"); // Valeur de retour
+    epilogueBloc = currentCFG->addBasicBloc("." + funcName + "_exit");
+
+    if (ctx->paramList()) {
+        auto* paramList = ctx->paramList();
+        for (size_t i = 0; i < paramList->ID().size(); i++) {
+            std::string paramName = paramList->ID(i)->getText();
+            auto* bloc = currentCFG->getCurrentBasicBloc();
+            bloc->addInstruction(new IRInstrGetParam(bloc, paramName, i)); //Ajout des paramétres de la fonction
+        }
+    }
+
+    for (auto* stmt : ctx->stmt()) {
+        visit(stmt);
+    }
+    allFunctions.push_back({funcName, currentCFG, symbolTable});
+
     return 0;
 }
 

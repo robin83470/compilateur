@@ -12,16 +12,17 @@
 //  3. On passe le CFG à un BackEnd pour générer l'assembleur
 class IRVisitor : public ifccBaseVisitor {
 public:
-    IRVisitor(SymbolTable* symbolTable);
+    struct FunctionData {
+        std::string name;
+        IRControlFlowGraph* cfg;
+        SymbolTable* symbolTable;
+    };
+
+    IRVisitor(SymbolTable* symbolTable, const std::map<std::string, SymbolTable>& funcTables);
 
     IRControlFlowGraph* buildIr(antlr4::tree::ParseTree* tree);
 
 
-    const std::vector<std::pair<IRControlFlowGraph*, SymbolTable*>>& getAllFunctions() const {
-        return allFunctions;
-    }
-
-    // ── Visiteurs ANTLR ─────────────────────────────────────────
     virtual antlrcpp::Any visitProg(ifccParser::ProgContext* ctx) override;
     virtual antlrcpp::Any visitFunction(ifccParser::FunctionContext* ctx) override;
     virtual antlrcpp::Any visitReturn_stmt(ifccParser::Return_stmtContext* ctx) override;
@@ -61,8 +62,13 @@ public:
     virtual antlrcpp::Any visitRhsList(ifccParser::RhsListContext* ctx) override;
     virtual antlrcpp::Any visitExpr_land(ifccParser::Expr_landContext *ctx) override;
     virtual antlrcpp::Any visitExpr_lor(ifccParser::Expr_lorContext *ctx) override;
+
+
+    std::vector<FunctionData> getAllFunctions(){
+        return allFunctions;
+    };
 private:
-    std::vector<std::pair<IRControlFlowGraph*, SymbolTable*>> allFunctions;
+    std::vector<FunctionData> allFunctions;
     struct LoopContext {
         IRBasicBloc* continueNextBlock; // bloc où sauter après le continue
         IRBasicBloc* breakNextBlock;    // bloc où sauter après le break
@@ -73,6 +79,7 @@ private:
     IRBasicBloc* epilogueBloc = nullptr;  //pointeur vers le bloc épilogue, pour y ajouter les instructions de retour
     IRControlFlowGraph* currentCFG = nullptr;
     SymbolTable* symbolTable;
+    std::map<std::string, SymbolTable> functionSymbolTables;
     int ifCounter = 0;
     std::vector<LoopContext> loopStack; // pile des contextes de boucles pour gérer les boucles
     std::vector<IRBasicBloc*> switchBreakStack;

@@ -77,5 +77,5 @@ private:
     std::vector<IRBasicBloc*> blocs;
     IRBasicBloc* currentBasicBloc = nullptr;  // Bloc en cours de construction
     SymbolTable* symbolTable;
-    int nextBlocNumber = 0; // Pour générer des labels uniques
+    static int nextBlocNumber; // Pour générer des labels uniques Attention variable globale pour partager avec toutes les fonctions
 };
