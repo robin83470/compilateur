@@ -489,10 +489,11 @@ antlrcpp::Any IRVisitor::visitWhile_stmt(ifccParser::While_stmtContext* ctx) {
     currentCFG->setCurrentBasicBloc(condBloc);
 
     std::string condTmp = std::any_cast<std::string>(visit(ctx->rhs()));
+    IRBasicBloc* condExitBloc = currentCFG->getCurrentBasicBloc();
 
-    condBloc->setTestVarName(condTmp);
-    condBloc->setExitTrue(bodyBloc);
-    condBloc->setExitFalse(endBloc);
+    condExitBloc->setTestVarName(condTmp);
+    condExitBloc->setExitTrue(bodyBloc);
+    condExitBloc->setExitFalse(endBloc);
 
     currentCFG->setCurrentBasicBloc(bodyBloc);
     loopStack.push_back({condBloc, endBloc});
@@ -526,9 +527,10 @@ antlrcpp::Any IRVisitor::visitIf_stmt(ifccParser::If_stmtContext *ctx)
 
     // Test
     std::string testVarName = std::any_cast<std::string>(visit(ctx->rhs()));
-    currentTestBloc->setTestVarName(testVarName);
-    currentTestBloc->setExitTrue(thenBloc);
-    currentTestBloc->setExitFalse(hasElse ? elseBloc : exitBloc);
+    IRBasicBloc* testExitBloc = currentCFG->getCurrentBasicBloc();
+    testExitBloc->setTestVarName(testVarName);
+    testExitBloc->setExitTrue(thenBloc);
+    testExitBloc->setExitFalse(hasElse ? elseBloc : exitBloc);
 
     // Then
     currentCFG->setCurrentBasicBloc(thenBloc);
@@ -761,8 +763,8 @@ antlrcpp::Any IRVisitor::visitExpr_land(ifccParser::Expr_landContext *ctx) {
     // Variable contenant le résultat de (a && b)
     std::string res = currentCFG->newTemp("int");
 
-    // Blocs pour évaluer la partie gauche (a) et la partie droite (b)
-    IRBasicBloc* evalLeftBloc  = currentCFG->getCurrentBasicBloc();
+    // Le bloc courant calcule la partie gauche (a) puis branche vers l'évaluation de droite si besoin.
+    IRBasicBloc* evalLeftEntry = currentCFG->getCurrentBasicBloc();
     IRBasicBloc* evalRightBloc = currentCFG->addBasicBlocUnique("land_rhs");
 
     // Blocs pour fixer le résultat à 0 si False et 1 si True
@@ -774,21 +776,25 @@ antlrcpp::Any IRVisitor::visitExpr_land(ifccParser::Expr_landContext *ctx) {
 
     // Visiter l'expression de gauche a
     std::string leftVar = std::any_cast<std::string>(visit(ctx->rhs(0)));
+    IRBasicBloc* evalLeftExit = currentCFG->getCurrentBasicBloc();
 
-    // Si l'évaluation de a donne faux, on saute directement vers le bloc false sans évaluer b, sinon on évalue l'expression de droite b
-    evalLeftBloc->setTestVarName(leftVar);
-    evalLeftBloc->setExitTrue(evalRightBloc);
-    evalLeftBloc->setExitFalse(setFalseBloc);
+    // Si l'évaluation de a donne faux, on saute directement vers false sans évaluer b.
+    // Quand a est elle-même une expression paresseuse, le bloc à brancher est son bloc de sortie réel.
+    evalLeftExit->setTestVarName(leftVar);
+    evalLeftExit->setExitTrue(evalRightBloc);
+    evalLeftExit->setExitFalse(setFalseBloc);
 
     // On bascule dans le bloc pour évaluer l'expression b
     currentCFG->setCurrentBasicBloc(evalRightBloc);
 
     std::string rightVar = std::any_cast<std::string>(visit(ctx->rhs(1)));
+    IRBasicBloc* evalRightExit = currentCFG->getCurrentBasicBloc();
 
-    // Si l'évaluation de b donne faux, on saute vers le bloc false sinon vers true
-    evalRightBloc->setTestVarName(rightVar);
-    evalRightBloc->setExitTrue(setTrueBloc);
-    evalRightBloc->setExitFalse(setFalseBloc);
+    // Si b contient elle-même un || ou un &&, il faut brancher depuis son bloc de sortie
+    // effectif plutôt que depuis le bloc d'entrée.
+    evalRightExit->setTestVarName(rightVar);
+    evalRightExit->setExitTrue(setTrueBloc);
+    evalRightExit->setExitFalse(setFalseBloc);
 
 
     // Bloc résultat faux (res = 0)
@@ -811,8 +817,8 @@ antlrcpp::Any IRVisitor::visitExpr_lor(ifccParser::Expr_lorContext *ctx) {
     // Variable contenant le résultat de (a || b)
     std::string res = currentCFG->newTemp("int");
 
-    // Blocs pour évaluer la partie gauche (a) et la partie droite (b)
-    IRBasicBloc* evalLeftBloc  = currentCFG->getCurrentBasicBloc();
+    // Le bloc courant calcule la partie gauche (a) puis court-circuite vers true si besoin.
+    IRBasicBloc* evalLeftEntry = currentCFG->getCurrentBasicBloc();
     IRBasicBloc* evalRightBloc = currentCFG->addBasicBlocUnique("land_rhs");
 
     // Blocs pour fixer le résultat à 0 si False et 1 si True
@@ -824,22 +830,24 @@ antlrcpp::Any IRVisitor::visitExpr_lor(ifccParser::Expr_lorContext *ctx) {
 
     // Visiter l'expression de gauche a
     std::string leftVar = std::any_cast<std::string>(visit(ctx->rhs(0)));
+    IRBasicBloc* evalLeftExit = currentCFG->getCurrentBasicBloc();
 
-    // Si l'évaluation de a donne vrai, on saute directement vers le bloc true sans évaluer b, sinon on évalue l'expression de droite b
-    evalLeftBloc->setTestVarName(leftVar);
-    evalLeftBloc->setExitTrue(setTrueBloc);
-    evalLeftBloc->setExitFalse(evalRightBloc);
+    // Si a vaut vrai on saute directement vers true sans évaluer b.
+    evalLeftExit->setTestVarName(leftVar);
+    evalLeftExit->setExitTrue(setTrueBloc);
+    evalLeftExit->setExitFalse(evalRightBloc);
 
     // On bascule dans le bloc pour évaluer l'expression b
     currentCFG->setCurrentBasicBloc(evalRightBloc);
     std::string rightVar = std::any_cast<std::string>(visit(ctx->rhs(1)));
+    IRBasicBloc* evalRightExit = currentCFG->getCurrentBasicBloc();
 
 
 
-    // Si l'évaluation de b donne vrai, on saute vers le bloc true sinon vers le bloc false
-    evalRightBloc->setTestVarName(rightVar);
-    evalRightBloc->setExitTrue(setTrueBloc);
-    evalRightBloc->setExitFalse(setFalseBloc);
+    // On branche depuis le vrai bloc de sortie de b.
+    evalRightExit->setTestVarName(rightVar);
+    evalRightExit->setExitTrue(setTrueBloc);
+    evalRightExit->setExitFalse(setFalseBloc);
 
 
     // Bloc résultat faux (res = 0)
