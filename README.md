@@ -74,7 +74,7 @@ Suites stables (quasi toutes vertes) :
 - Base : retours, declarations, affectations simples
 - Arithmetique : priorites/associativite/unaires
 - While, if, commentaires
-- Appels I/O de base : getchar/putchar (formes couvertes)
+- Appels I/O de base : getchar et putchar avec argument (`putchar(expr);`)
 - Affectation composee dans ValidPrograms
 - Une grande partie de switch, pointeurs, comparaisons binaires
 
