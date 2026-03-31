@@ -230,14 +230,6 @@ antlrcpp::Any IRVisitor::visitExpr_const(ifccParser::Expr_constContext* ctx) {
     return tmp;
 }
 
-antlrcpp::Any IRVisitor::visitExpr_negconst(ifccParser::Expr_negconstContext* ctx) {
-    std::string tmp = currentCFG->newTemp();
-    int val = std::stoi(ctx->NEGCONST()->getText());
-    auto* bloc = currentCFG->getCurrentBasicBloc();
-    bloc->addInstruction(new IRInstrConst(bloc, tmp, val));
-    return tmp;
-}
-
 antlrcpp::Any IRVisitor::visitExpr_char(ifccParser::Expr_charContext* ctx) {
     std::string text = ctx->CHARCONST()->getText();
     int val = 0;
@@ -634,7 +626,7 @@ antlrcpp::Any IRVisitor::visitSwitch_stmt(ifccParser::Switch_stmtContext* ctx) {
 antlrcpp::Any IRVisitor::visitSwitch_value(ifccParser::Switch_valueContext* ctx) {
     int val = 0;
 
-    if (ctx->CONST() != nullptr || ctx->NEGCONST() != nullptr) {
+    if (ctx->CHARCONST() == nullptr) {
         val = std::stoi(ctx->getText());
     } else {
         val = parseCharLiteralValue(ctx->CHARCONST()->getText());

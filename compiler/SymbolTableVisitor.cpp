@@ -135,10 +135,6 @@ antlrcpp::Any SymbolTableVisitor::visitExpr_const(ifccParser::Expr_constContext 
     return std::string("int");
 }
 
-antlrcpp::Any SymbolTableVisitor::visitExpr_negconst(ifccParser::Expr_negconstContext *ctx) {
-    return std::string("int");
-}
-
 antlrcpp::Any SymbolTableVisitor::visitExpr_char(ifccParser::Expr_charContext *ctx) {
     return std::string("int");
 }
@@ -354,7 +350,7 @@ antlrcpp::Any SymbolTableVisitor::visitSwitch_stmt(ifccParser::Switch_stmtContex
 }
 
 antlrcpp::Any SymbolTableVisitor::visitSwitch_value(ifccParser::Switch_valueContext *ctx) {
-    if (ctx->CONST() != nullptr || ctx->NEGCONST() != nullptr) {
+    if (ctx->CHARCONST() == nullptr) {
         return std::stoi(ctx->getText());
     }
 

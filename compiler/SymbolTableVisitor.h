@@ -24,7 +24,6 @@ class SymbolTableVisitor : public ifccBaseVisitor {
         virtual antlrcpp::Any visitExpr_addrof(ifccParser::Expr_addrofContext *ctx) override;
         virtual antlrcpp::Any visitExpr_deref(ifccParser::Expr_derefContext *ctx) override;
         virtual antlrcpp::Any visitExpr_const(ifccParser::Expr_constContext *ctx) override;
-        virtual antlrcpp::Any visitExpr_negconst(ifccParser::Expr_negconstContext *ctx) override;
         virtual antlrcpp::Any visitExpr_char(ifccParser::Expr_charContext *ctx) override;
         virtual antlrcpp::Any visitExpr_comparison(ifccParser::Expr_comparisonContext *ctx) override;
         virtual antlrcpp::Any visitExpr_equality(ifccParser::Expr_equalityContext *ctx) override;
