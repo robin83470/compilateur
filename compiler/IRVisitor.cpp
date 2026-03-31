@@ -310,7 +310,17 @@ antlrcpp::Any IRVisitor::visitExpr_addrof(ifccParser::Expr_addrofContext* ctx) {
 
 antlrcpp::Any IRVisitor::visitExpr_deref(ifccParser::Expr_derefContext* ctx) {
     std::string addrPtr = std::any_cast<std::string>(visit(ctx->rhs()));
-    std::string tmp = currentCFG->newTemp();
+    
+    // Déterminer le type de la déréférence
+    std::string addrPtrType = currentCFG->getSymbolTable()->getType(addrPtr);
+    std::string resultType = "int"; // type par défaut
+    
+    // Enlever un "*" du type pour obtenir le type du résultat
+    if (addrPtrType.length() > 0 && addrPtrType.back() == '*') {
+        resultType = addrPtrType.substr(0, addrPtrType.length() - 1);
+    }
+    
+    std::string tmp = currentCFG->newTemp(resultType);
     auto* bloc = currentCFG->getCurrentBasicBloc();
     bloc->addInstruction(new IRInstrLoadIndirect(bloc, tmp, addrPtr));
     return tmp;

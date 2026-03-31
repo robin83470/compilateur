@@ -175,15 +175,29 @@ void IRInstrLoadIndirect::genX86(std::ostream& out) const {
     int offsetAddr = parentBloc->getCFG()->getSymbolTable()->getOffset(addrPtr);
     int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
 
-    // %rax = pointeur, puis lecture 32 bits pointée dans %ecx
+    std::string destType = parentBloc->getCFG()->getSymbolTable()->getType(dest);
+    bool isPointer = parentBloc->getCFG()->getSymbolTable()->isPointerType(destType);
+
+    // %rax = pointeur, puis lecture depuis l'adresse pointée
     out << "    movq " << offsetAddr << "(%rbp), %rax\n";
-    out << "    movl (%rax), %ecx\n";
-    out << "    movl %ecx, " << offsetDest << "(%rbp)\n";
+    
+    if (isPointer) {
+        // Charger 64 bits pour un pointeur
+        out << "    movq (%rax), %rcx\n";
+        out << "    movq %rcx, " << offsetDest << "(%rbp)\n";
+    } else {
+        // Charger 32 bits pour un int
+        out << "    movl (%rax), %ecx\n";
+        out << "    movl %ecx, " << offsetDest << "(%rbp)\n";
+    }
 }
 
 void IRInstrLoadIndirect::genARM(std::ostream& out) const {
     int offsetAddr = parentBloc->getCFG()->getSymbolTable()->getOffset(addrPtr);
     int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+
+    std::string destType = parentBloc->getCFG()->getSymbolTable()->getType(dest);
+    bool isPointer = parentBloc->getCFG()->getSymbolTable()->isPointerType(destType);
 
     // x9 = pointeur chargé depuis la pile
     if (offsetAddr >= -256 && offsetAddr <= 255) {
@@ -198,9 +212,16 @@ void IRInstrLoadIndirect::genARM(std::ostream& out) const {
         throw std::runtime_error("ARM stack offset out of supported range for load pointer");
     }
 
-    // On lit l'int pointé (32 bits) puis on le stocke dans dest
-    out << "    ldr w11, [x9]\n";
-    arm_codegen::emitStoreWToOffset(out, offsetDest, "w11");
+    // On lit depuis l'adresse pointée
+    if (isPointer) {
+        // Charger 64 bits pour un pointeur
+        out << "    ldr x11, [x9]\n";
+        arm_codegen::emitStoreWToOffset(out, offsetDest, "x11");
+    } else {
+        // Charger 32 bits pour un int
+        out << "    ldr w11, [x9]\n";
+        arm_codegen::emitStoreWToOffset(out, offsetDest, "w11");
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════
