@@ -707,6 +707,11 @@ antlrcpp::Any IRVisitor::visitFunction(ifccParser::FunctionContext* ctx) {
     currentCFG->setCurrentBasicBloc(currentCFG->getBlocs()[0]);
 
     symbolTable->addSymbol("!retval"); // Valeur de retour
+    
+    // Initialiser la valeur de retour à 0 par défaut
+    auto* entryBloc = currentCFG->getCurrentBasicBloc();
+    entryBloc->addInstruction(new IRInstrConst(entryBloc, "!retval", 0));
+    
     epilogueBloc = currentCFG->addBasicBloc("." + funcName + "_exit");
 
     if (ctx->paramList()) {
