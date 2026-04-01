@@ -1,183 +1,209 @@
 # PLD Compilateur
-Ce projet est un compilateur pour le langage C.
 
-## Compilation du compilateur
+README refait depuis zero avec etat reel du projet base sur execution complete des tests.
 
-Pour compiler le compilateur `ifcc`, placez-vous dans le dossier `compiler` et exécutez la commande `make` :
+Date du bilan : 2026-03-31
+
+## 1. Ce qui change vraiment par rapport a un compilateur C classique
+
+Notre compilateur est volontairement un sous-ensemble de C, oriente TP, avec des choix differents d un compilateur industriel :
+
+- Focus sur un sous-ensemble du langage (grammaire ANTLR + visiteurs IR).
+- Sortie directe en assembleur cible x86_64 ou arm64, pas de phases d optimisation avancees.
+- Verification semantique minimaliste mais explicite (types principalement int/int*).
+- Suite de tests structuree en trois blocs :
+  - ValidPrograms : comportement attendu stable.
+  - InvalidPrograms : programmes a rejeter.
+  - NotImplementedYet : fonctionnalites en cours, pas contractuelles.
+
+## 2. Compilation et utilisation
+
+Compiler le projet :
 
 ```bash
 cd compiler
 make
 ```
 
-Cela génère l'exécutable `ifcc` dans le dossier `compiler`.
-
-## Utilisation du compilateur
-
-Le compilateur prend en entrée un fichier source C et génère du code assembleur sur la sortie standard.
-
-### Cibles supportées
-
-- `x86_64` : Intel 64 bits
-- `arm64` : Apple Silicon (M series)
-
-Par défaut, la cible suit l'architecture de la machine hôte:
-- `x86_64` sur une machine Intel/AMD 64 bits
-- `arm64` sur une machine Apple Silicon
-
-### Syntaxe
+Utiliser le compilateur :
 
 ```bash
-./ifcc [--target <x86_64|arm64>] chemin/vers/fichier.c > output.s
-```
-
-### Exemples de génération
-
-```bash
-# Intel
-./ifcc --target x86_64 exemple.c > exemple-x86.s
-
-# Apple Silicon Mac (M1/M2/M3/...)
-./ifcc --target arm64 exemple.c > exemple-arm64.s
-```
-
-### Exemple
-
-Pour compiler un programme simple :
-
-```c
-// exemple.c
-int main() {
-    return 42;
-}
-```
-
-```bash
-./ifcc --target x86_64 exemple.c > exemple.s
-gcc exemple.s -o exemple
-./exemple
+./ifcc [--target x86_64|arm64] path/to/file.c > output.s
+gcc output.s -o output
+./output
 echo $?
-# Devrait afficher 42
 ```
 
-## Exécution des tests
+## 3. Execution des tests (fait dans ce bilan)
 
-Le script `ifcc-test.py` permet de lancer automatiquement les tests sur tous les programmes de test.
-
-### Lancement des tests
+Commande executee pour ce README :
 
 ```bash
-python3 ifcc-test.py testfiles/
+python3 ifcc-test.py testfiles
 ```
 
-Par défaut, si `--target` n'est pas fourni, la suite de tests utilise l'architecture de la machine hôte.
+Resultat detaille ecrit dans :
 
-Vous pouvez préciser la cible testée :
+- test_results.csv
 
-```bash
-# Sur machine Intel
-python3 ifcc-test.py --target x86_64 testfiles/
+## 4. Bilan global des tests
 
-# Sur machine Apple Silicon
-python3 ifcc-test.py --target arm64 testfiles/
-```
+Resultats globaux (tous tests, implementes et non implementes) :
 
-Ce script :
-- Compile chaque programme de test avec `ifcc --target ...` et avec `gcc`
-- Assemble et lie les programmes
-- Exécute les programmes et compare les codes de retour
-- Génère des logs et des fichiers de sortie dans le dossier `ifcc-test-output`
-- Supporte un fichier compagnon `nom_du_test.stdin` pour fournir une entrée standard afin de faire les tests avec des I/O, notamment ceux utilisant `getchar`
+- Total : 449
+- OK : 403
+- FAIL : 46
 
-### Structure des tests
+Par groupe :
 
-- `testfiles/ValidPrograms/` : Programmes C valides
-- `testfiles/InvalidPrograms/` : Programmes C invalides (pour tester les erreurs)
-- `testfiles/NotImplementedYet/` : Réservé aux cas non implémentés (actuellement vide)
+- Valid : 140 total, 138 OK, 2 FAIL
+- Invalid : 130 total, 123 OK, 7 FAIL
+- NotImplementedYet : 179 total, 142 OK, 37 FAIL
 
+Types d echecs observes :
 
-## Fonctionnalités supportées
+- 15 cas : compilateur rejette un programme valide
+- 14 cas : resultat d execution different de GCC
+- 13 cas : assembleur genere incorrect
+- 4 cas : compilateur accepte un programme invalide
 
-### Types de base
-- `int` : Type entier
+## 5. Ce qui est cense marcher (et marche majoritairement)
 
-### Structure du programme
-- Une fonction `int main() { ... }`
+Suites stables (quasi toutes vertes) :
 
-### Déclarations
-- Déclaration de variables : `int a;`
-- Déclaration avec initialisation : `int a = 5;`
-- Déclarations multiples : `int a, b = 3;`
-- Affectation : `a = expr;`
+- Base : retours, declarations, affectations simples
+- Arithmetique : priorites/associativite/unaires
+- While, structures conditionnelles `if`, `if/else`, `else if`, imbrication de conditions, commentaires
+- Appels I/O de base : getchar et putchar avec argument (`putchar(expr);`)
+- Affectation composee dans ValidPrograms
+- Une grande partie de switch, pointeurs, comparaisons binaires
 
-### Expressions arithmétiques
-- Constantes entières : `42`
-- Constantes caractère : `'a'`, `'\n'`, `'\t'`, `'\''`, `'\\'`
-- Variables : `a`
-- Opérateurs unaires : `+`, `-`, `!`
-- Opérateurs binaires arithmétiques : `+`, `-`, `*`, `/`, `%`
-- Opérateurs de comparaison : `<`, `<=`, `>`, `>=`, `==`, `!=`
-- Opérateurs binaires bit à bit : `&`, `|`, `^`
-- Parenthèses : `(expr)`
-- Priorités des opérateurs (selon la norme C) :
-  - `!` et les unaires avant les binaires
-  - `*`, `/`, `%` avant `+`, `-`
-  - comparaisons et égalités après arithmétique
-  - `&`, `^`, `|` ensuite
-  - Associativité à gauche par défaut
-- Expressions imbriquées
+Sur les suites implementees uniquement (hors NotImplementedYet) :
 
-### Instructions
-- `return expr;`
-- `if (...) { ... }`
-- `if (...) { ... } else if (...) { ... } else { ... }`
-- `while (...) { ... }`
-- `switch (...) { case ...: ... default: ... }`
-- `break;`
-- `continue;`
+- 270 tests executes
+- 261 OK
+- 9 FAIL
 
-### Détails sur `switch`
-- Valeurs de `case` supportées : constantes entières et constantes caractère
-- On vérifie bien sémantiquement l'unicité des `case`
-- `default` optionnel
-- Le passage au `case` suivant pris en charge si aucun `break` n'est présent
-- `break` permet de sortir du `switch`
+## 6. Ce qui ne marche pas (liste exhaustive des FAIL)
 
-### Entrées / sorties standard
-- `getchar()` : lecture d'un caractère depuis l'entrée standard, avec retour `int`
-- `putchar(expr)` : écriture d'un caractère sur la sortie standard, avec retour `int`
-- `putchar` accepte actuellement comme argument :
-  - une constante entière
-  - une constante caractère
-  - une variable
-  - `getchar()`
+### 6.1 Echecs hors NotImplementedYet (priorite correction)
 
-### Prétraitement et commentaires
-- Lignes de directives préprocesseur (`#...`) ignorées par le parser
-- Commentaires C bloc `/* ... */`
+- testfiles-InvalidPrograms-ComparaisonBinaire-or_after_if
+- testfiles-InvalidPrograms-Functions-func_no_type
+- testfiles-InvalidPrograms-Functions-func_too_few_args
+- testfiles-InvalidPrograms-Functions-func_too_many_args
+- testfiles-InvalidPrograms-Functions-func_undefined
+- testfiles-InvalidPrograms-block-block_no_block_keyword
+- testfiles-InvalidPrograms-block-block_wrong_return_type
+- testfiles-ValidPrograms-ComparaisonBinaire-logical_and_or_precedence
+- testfiles-ValidPrograms-Pointeurs-double_deref_read
 
-### Gestion des erreurs
-- Erreurs lexicales
-- Erreurs de syntaxe
-- Variables non déclarées
-- Variables déclarées plusieurs fois
-- Avertissement pour variables déclarées mais non utilisées
+### 6.2 Echecs NotImplementedYet (fonctionnalites en cours)
 
-### Limitations
-- Uniquement `int main()` sans paramètres
-- Pas de types autres que `int` (pas de `char`, `float`, etc.)
-- Pas de définition de fonctions utilisateur
-- Pas d'appels de fonctions génériques
-- Seuls les builtins `getchar()` et `putchar(...)` sont pris en charge pour l'instant
-- Pas de tableaux, pointeurs, structures
-- Pas de `for`, `do ... while`
-- Pas d'opérateurs logiques court-circuit (`&&`, `||`)
-- `putchar` ne prend pas encore en charge une expression arithmétique générale comme argument.
-- Les fonctions doivent contenir une valeur de retour. Dans le cas contraire, le programme ne compile pas.
+- testfiles-NotImplementedYet-InvalidProgram-OperateursParesseux-18_if_without_block_with_logic
+- testfiles-NotImplementedYet-InvalidProgram-switch-11_switch_no_body
+- testfiles-NotImplementedYet-ValidPrograms-Comparaison-priorite
+- testfiles-NotImplementedYet-ValidPrograms-Functions-func_ext_keyword
+- testfiles-NotImplementedYet-ValidPrograms-Functions-func_invalid_return_type
+- testfiles-NotImplementedYet-ValidPrograms-Functions-func_return_missing
+- testfiles-NotImplementedYet-ValidPrograms-Functions-function_call_in_expr
+- testfiles-NotImplementedYet-ValidPrograms-Functions-function_default
+- testfiles-NotImplementedYet-ValidPrograms-Functions-function_expr_arg
+- testfiles-NotImplementedYet-ValidPrograms-Functions-function_multi
+- testfiles-NotImplementedYet-ValidPrograms-Functions-function_multi_param_expr
+- testfiles-NotImplementedYet-ValidPrograms-Functions-function_nested_call
+- testfiles-NotImplementedYet-ValidPrograms-Functions-function_no_param
+- testfiles-NotImplementedYet-ValidPrograms-Functions-function_order
+- testfiles-NotImplementedYet-ValidPrograms-Functions-function_param_chain
+- testfiles-NotImplementedYet-ValidPrograms-Functions-function_params_add
+- testfiles-NotImplementedYet-ValidPrograms-Functions-function_return_var
+- testfiles-NotImplementedYet-ValidPrograms-Functions-function_scope
+- testfiles-NotImplementedYet-ValidPrograms-Functions-function_simple_return
+- testfiles-NotImplementedYet-ValidPrograms-OperateursParesseux-10_logic_with_blocks
+- testfiles-NotImplementedYet-ValidPrograms-OperateursParesseux-12_or_chain_with_zero_guard
+- testfiles-NotImplementedYet-ValidPrograms-OperateursParesseux-13_lazy_in_while_guard
+- testfiles-NotImplementedYet-ValidPrograms-OperateursParesseux-14_lazy_if_else_complex
+- testfiles-NotImplementedYet-ValidPrograms-OperateursParesseux-16_nested_parentheses_complex
+- testfiles-NotImplementedYet-ValidPrograms-OperateursParesseux-17_with_unary_and_compare
+- testfiles-NotImplementedYet-ValidPrograms-OperateursParesseux-2_or_guard_division
+- testfiles-NotImplementedYet-ValidPrograms-OperateursParesseux-3_and_or_nested
+- testfiles-NotImplementedYet-ValidPrograms-OperateursParesseux-6_while_lazy_condition
+- testfiles-NotImplementedYet-ValidPrograms-OperateursParesseux-7_chain_and_or
+- testfiles-NotImplementedYet-ValidPrograms-alphabet
+- testfiles-NotImplementedYet-ValidPrograms-bitwise_or
+- testfiles-NotImplementedYet-ValidPrograms-block-block_var_scope
+- testfiles-NotImplementedYet-ValidPrograms-print_int
+- testfiles-NotImplementedYet-ValidPrograms-switch-10_switch_negative_case
+- testfiles-NotImplementedYet-ValidPrograms-switch-14_switch_local_var_in_case
+- testfiles-NotImplementedYet-ValidPrograms-switch-15_switch_putchar
+- testfiles-NotImplementedYet-ValidPrograms-switch-7_switch_default_middle
+- testfiles-NotImplementedYet-bitwise_or
 
+## 7. Messages d erreurs et warnings (actuels)
 
-## Dépendances
+Messages observes/emis par le compilateur :
 
-- ANTLR4 (runtime C++)
-- GCC (pour l'assemblage et le linkage)
-- Python 3 (pour les tests)
+- error: syntax error during parsing
+- Erreur lexicale
+- Erreur : le symbole '<nom>' est deja declare.
+- Erreur : le symbole '<nom>' n'existe pas.
+- Erreur : type inconnu '<type>'.
+- Erreur de type (...)
+- Avertissement : la variable '<nom>' a ete declaree mais n est pas utilisee.
+- error: unsupported target '<valeur>' (expected x86_64 or arm64)
+- error: unknown option '<option>'
+- error: cannot read file: <path>
+
+Important : une partie des erreurs semantiques est encore geree via sortie stderr + exit direct dans la table des symboles, pas via une infrastructure d erreur unifiee.
+
+## 8. Cas mentionnes en revue : attendu vs observe
+
+Verification faite pendant la redaction du README :
+
+- return 5 ++ 5;
+  - Attendu : erreur.
+  - Observe : rejete (erreur de parsing). Donc ce point semble corrige.
+
+- y = x - - x;
+  - Attendu : valide (equivalent a x - (-x)).
+  - Observe : compile et execute, code retour observe 6 pour x=3.
+
+- y = !0;
+  - Attendu (selon remarque): erreur de syntaxe.
+  - Observe : compile et execute, code retour 1.
+  - Note : avec la grammaire actuelle, ! est explicitement supporte, donc ce comportement est coherent avec l implementation courante.
+
+- int c = 'A';
+  - Attendu : equivalent a 65.
+  - Observe : compile et execute, code retour 65.
+
+- Verification lexer.getNumberOfSyntaxErrors dans main
+  - Observe : present et teste dans main (en plus de parser.getNumberOfSyntaxErrors).
+
+- Programme sans return
+  - Attendu projet : interdit (doit etre rejete).
+  - Observe : accepte actuellement, et peut produire un executable avec retour non contractuel (exemple observe a 0).
+
+Conclusion sur ce point : la politique projet doit etre explicitee et enforcee semantiquement (au minimum, rejet des fonctions int sans return garanti).
+
+## 9. Ce qui est officiellement contractuel vs en cours
+
+Contractuel aujourd hui :
+
+- Ce qui est dans ValidPrograms et InvalidPrograms, sous reserve des 9 regressions listees en section 6.1.
+
+En cours (non contractuel) :
+
+- Contenu de NotImplementedYet, notamment fonctions avancees, operateurs paresseux complexes, certains cas switch, print_int, et variantes supplementaires.
+
+Note sur les conditions :
+
+- Les formes `if (...) stmt;`, `if (...) { ... }`, `if (...) ... else ...` et `else if (...) ...` sont prises en charge.
+- Les conditions imbriquees et l'utilisation de conditions a l'interieur de blocs ou de boucles sont egalement couvertes par les tests valides actuels.
+
+## 10. Pistes de correction prioritaires
+
+- Corriger les 9 FAIL hors NotImplementedYet en premier.
+- Rendre obligatoire un return valide pour les fonctions int.
+- Unifier le reporting d erreurs semantiques (exceptions + contexte source) au lieu de sorties abruptes.
+- Finaliser l implementation IR/backend des appels de fonctions utilisateur (source principale de FAIL en NotImplementedYet).

@@ -79,10 +79,10 @@ void IRInstrCopy::printDebug(std::ostream& out) const {
 void IRInstrCopy::genX86(std::ostream& out) const {
     int offsetSrc = parentBloc->getCFG()->getSymbolTable()->getOffset(src);
     int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
-    
+
     std::string srcType = parentBloc->getCFG()->getSymbolTable()->getType(src);
     bool isPointer = parentBloc->getCFG()->getSymbolTable()->isPointerType(srcType);
-    
+
     // Copie 64 bits pour les pointeurs et 32 bits pour les int
     if (isPointer) {
         out << "    movq " << offsetSrc << "(%rbp), %rax\n";
@@ -96,10 +96,10 @@ void IRInstrCopy::genX86(std::ostream& out) const {
 void IRInstrCopy::genARM(std::ostream& out) const {
     int offsetSrc = parentBloc->getCFG()->getSymbolTable()->getOffset(src);
     int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
-    
+
     std::string srcType = parentBloc->getCFG()->getSymbolTable()->getType(src);
     bool isPointer = parentBloc->getCFG()->getSymbolTable()->isPointerType(srcType);
-    
+
     // Copie 64 bits pour les pointeurs et 32 bits pour les int
     if (isPointer) {
         arm_codegen::emitLoadWFromOffset(out, offsetSrc, "x9");
@@ -109,6 +109,7 @@ void IRInstrCopy::genARM(std::ostream& out) const {
         arm_codegen::emitStoreWToOffset(out, offsetDest, "w9");
     }
 }
+
 
 // ═══════════════════════════════════════════════════════════════════
 //  IRInstrAddrOf : destPtr = &varName
@@ -175,15 +176,29 @@ void IRInstrLoadIndirect::genX86(std::ostream& out) const {
     int offsetAddr = parentBloc->getCFG()->getSymbolTable()->getOffset(addrPtr);
     int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
 
-    // %rax = pointeur, puis lecture 32 bits pointée dans %ecx
+    std::string destType = parentBloc->getCFG()->getSymbolTable()->getType(dest);
+    bool isPointer = parentBloc->getCFG()->getSymbolTable()->isPointerType(destType);
+
+    // %rax = pointeur, puis lecture depuis l'adresse pointée
     out << "    movq " << offsetAddr << "(%rbp), %rax\n";
-    out << "    movl (%rax), %ecx\n";
-    out << "    movl %ecx, " << offsetDest << "(%rbp)\n";
+    
+    if (isPointer) {
+        // Charger 64 bits pour un pointeur
+        out << "    movq (%rax), %rcx\n";
+        out << "    movq %rcx, " << offsetDest << "(%rbp)\n";
+    } else {
+        // Charger 32 bits pour un int
+        out << "    movl (%rax), %ecx\n";
+        out << "    movl %ecx, " << offsetDest << "(%rbp)\n";
+    }
 }
 
 void IRInstrLoadIndirect::genARM(std::ostream& out) const {
     int offsetAddr = parentBloc->getCFG()->getSymbolTable()->getOffset(addrPtr);
     int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
+
+    std::string destType = parentBloc->getCFG()->getSymbolTable()->getType(dest);
+    bool isPointer = parentBloc->getCFG()->getSymbolTable()->isPointerType(destType);
 
     // x9 = pointeur chargé depuis la pile
     if (offsetAddr >= -256 && offsetAddr <= 255) {
@@ -198,9 +213,16 @@ void IRInstrLoadIndirect::genARM(std::ostream& out) const {
         throw std::runtime_error("ARM stack offset out of supported range for load pointer");
     }
 
-    // On lit l'int pointé (32 bits) puis on le stocke dans dest
-    out << "    ldr w11, [x9]\n";
-    arm_codegen::emitStoreWToOffset(out, offsetDest, "w11");
+    // On lit depuis l'adresse pointée
+    if (isPointer) {
+        // Charger 64 bits pour un pointeur
+        out << "    ldr x11, [x9]\n";
+        arm_codegen::emitStoreWToOffset(out, offsetDest, "x11");
+    } else {
+        // Charger 32 bits pour un int
+        out << "    ldr w11, [x9]\n";
+        arm_codegen::emitStoreWToOffset(out, offsetDest, "w11");
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -661,12 +683,12 @@ void IRInstrGetParam::printDebug(std::ostream& out) const {
 
 void IRInstrGetParam::genX86(std::ostream& out) const {
     static const std::vector<std::string> reg32 = {"%edi", "%esi", "%edx", "%ecx", "%r8d", "%r9d"};
-    // Registres 64 bits 
+    // Registres 64 bits
     static const std::vector<std::string> reg64 = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
 
     if (paramIndex < 6) {
         int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
-        
+
         int size = parentBloc->getCFG()->getSymbolTable()->getTotalSize();
 
 
@@ -682,11 +704,11 @@ void IRInstrGetParam::genX86(std::ostream& out) const {
 
 void IRInstrGetParam::genARM(std::ostream& out) const {
     // Registres pour ARM64
-    static const std::vector<std::string> armRegs = {"x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7"};
+    static const std::vector<const char*> armRegs = {"w0", "w1", "w2", "w3", "w4", "w5", "w6", "w7"};
 
     if (paramIndex < 8) {
         int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
-        out << "    str " << armRegs[paramIndex] << ", [x29, #" << offsetDest << "]\n";
+        arm_codegen::emitStoreWToOffset(out, offsetDest, armRegs[paramIndex]);
     } else {
         out << "    # Error: Parameter index " << paramIndex << " > 8 not supported\n";
     }
@@ -708,14 +730,14 @@ void IRInstrRet::genX86(std::ostream& out) const {
     out << "    movl " << offset << "(%rbp), %eax" << "\n";
 
     std::string funcName = parentBloc->getCFG()->getBlocs()[0]->getLabel();
-    
+
     out << "    jmp ." << funcName << "_exit" << "\n";
 }
 
 void IRInstrRet::genARM(std::ostream& out) const {
     int offset = parentBloc->getCFG()->getSymbolTable()->getOffset(src);
-    out << "    ldr x0, [x29, #" << offset << "]\n";
-    
+    arm_codegen::emitLoadWFromOffset(out, offset, "w0");
+
     std::string funcName = parentBloc->getCFG()->getBlocs()[0]->getLabel();
     out << "    b ." << funcName << "_exit\n";
 }
@@ -724,9 +746,9 @@ void IRInstrRet::genARM(std::ostream& out) const {
 //  IRInstrCall : dest = funcName(args...)
 // ═══════════════════════════════════════════════════════════════════
 
-IRInstrCall::IRInstrCall(IRBasicBloc* parentBloc, 
-                         const std::string& dest, 
-                         const std::string& funcName, 
+IRInstrCall::IRInstrCall(IRBasicBloc* parentBloc,
+                         const std::string& dest,
+                         const std::string& funcName,
                          const std::vector<std::string>& args)
     : IRInstruction(parentBloc), dest(dest), funcName(funcName), args(args) {}
 
@@ -757,17 +779,17 @@ void IRInstrCall::genX86(std::ostream& out) const {
 
 void IRInstrCall::genARM(std::ostream& out) const {
     // Registres pour ARM64
-    static const std::vector<std::string> armRegs = {"x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7"};
+    static const std::vector<const char*> armRegs = {"w0", "w1", "w2", "w3", "w4", "w5", "w6", "w7"};
 
     for (size_t i = 0; i < args.size() && i < 8; i++) {
         int offsetArg = parentBloc->getCFG()->getSymbolTable()->getOffset(args[i]);
-        out << "    ldr " << armRegs[i] << ", [x29, #" << offsetArg << "]\n";
+        arm_codegen::emitLoadWFromOffset(out, offsetArg, armRegs[i]);
     }
 
-    out << "    bl " << funcName << "\n";
+    out << "    bl _" << funcName << "\n";
 
     int offsetDest = parentBloc->getCFG()->getSymbolTable()->getOffset(dest);
-    out << "    str x0, [x29, #" << offsetDest << "]\n";
+    arm_codegen::emitStoreWToOffset(out, offsetDest, "w0");
 }
 
 // ═══════════════════════════════════════════════════════════════════

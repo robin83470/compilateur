@@ -8,36 +8,41 @@ function : 'int' ID '(' paramList? ')' '{' stmt* '}' ;
 
 paramList : 'int' ID (',' 'int' ID)* ;
 
-stmt : return_stmt | declaration_stmt | assign_stmt | while_stmt | if_stmt | break_stmt | continue_stmt | empty_stmt | block ;
+stmt : return_stmt | declaration_stmt | assign_stmt | while_stmt | if_stmt | switch_stmt | break_stmt | continue_stmt | putchar_stmt | empty_stmt | block ;
 
 empty_stmt : ';' ;
 expr_stmt : rhs ';' ;
+putchar_stmt : PUTCHAR '(' io_arg ')' ';' ;
 return_stmt : RETURN rhs ';' ;
 
 declarator : pointer_prefix? ID (EQUAL rhs)? ;
 pointer_prefix : '*' pointer_prefix? ;
 declaration_stmt : 'int' declarator (',' declarator)* ';' ;
-assign_stmt : lvalue EQUAL rhs ';' ;
+assign_stmt : lvalue assign_op rhs ';' ;
 while_stmt : WHILE '(' rhs ')' block ;
 break_stmt : BREAK ';' ;
 continue_stmt : CONTINUE ';' ;
-switch_stmt : SWITCH '(' rhs ')' '{' switch_case* switch_default? '}' ;
+switch_stmt : SWITCH '(' rhs ')' '{' switch_clause* '}' ;
+switch_clause : switch_case | switch_default ;
 switch_case : CASE switch_value ':' stmt* ;
 switch_default : DEFAULT ':' stmt* ;
-switch_value : CONST | CHARCONST ;
+switch_value : CONST | '-' CONST | CHARCONST ;
 
-
+assign_op : EQUAL | PLUSEQ | MINUSEQ | MULEQ | DIVEQ | MODEQ ;
 WHILE : 'while' ;
 BREAK : 'break' ;
 CONTINUE : 'continue' ;
 SWITCH : 'switch' ;
 CASE : 'case' ;
 DEFAULT : 'default' ;
+IF : 'if' ;
+ELSE : 'else' ;
 
 block : '{' stmt* '}' ;
 
-// Allow 'else if' by using parser-level sequencing; no special token needed.
-if_stmt: 'if' '(' rhs ')' stmt ('else' stmt)? ;
+if_stmt : IF '(' rhs ')' branch_body (ELSE else_branch)? ;
+branch_body : return_stmt | assign_stmt | while_stmt | switch_stmt | break_stmt | continue_stmt | putchar_stmt | empty_stmt | block ;
+else_branch : if_stmt | branch_body ;
 
 lvalue
     : ID # Lvalue_id
@@ -53,6 +58,8 @@ rhs :
     | rhs ('+'|'-') rhs # Expr_plusmoins
     | rhs (CMPLE|CMPGE|CMPLT|CMPGT) rhs # Expr_comparison
     | rhs (CMPEQ|CMPNE) rhs            # Expr_equality
+    | rhs LAND rhs                     # Expr_land
+    | rhs LOR rhs                      # Expr_lor
     | rhs BAND rhs                     # Expr_and
     | rhs BOR rhs                      # Expr_or
     | rhs BXOR rhs                     # Expr_xor
@@ -78,6 +85,11 @@ COMMENT : '/*' .*? '*/' -> skip ;
 DIRECTIVE : '#' .*? '\n' -> skip ;
 WS    : [ \t\r\n] -> channel(HIDDEN);
 ID : [a-zA-Z_][a-zA-Z0-9_]* ;
+PLUSEQ : '+=' ;
+MINUSEQ : '-=' ;
+MULEQ : '*=' ;
+DIVEQ : '/=' ;
+MODEQ : '%=' ;
 EQUAL : '=' ;
 INCR  : '++' ;
 DECR  : '--' ;
@@ -89,6 +101,8 @@ CMPLT : '<' ;
 CMPGT : '>' ;
 CMPEQ : '==' ;
 CMPNE : '!=' ;
+LAND : '&&' ;
+LOR : '||' ;
 BAND : '&' ;
 BXOR : '^' ;
 BOR  : '|' ;

@@ -19,6 +19,26 @@ int parseCharLiteralValue(const std::string& text) {
     }
     return text[1];
 }
+
+std::string buildCompoundAssignmentValue(IRControlFlowGraph* cfg,IRBasicBloc* bloc, const std::string& op,
+                               const std::string& lhs,
+                               const std::string& rhs) {
+    std::string tmp = cfg->newTemp();
+    if (op == "+=") {
+        bloc->addInstruction(new IRInstrAdd(bloc, tmp, lhs, rhs));
+    } else if (op == "-=") {
+        bloc->addInstruction(new IRInstrSub(bloc, tmp, lhs, rhs));
+    } else if (op == "*=") {
+        bloc->addInstruction(new IRInstrMult(bloc, tmp, lhs, rhs));
+    } else if (op == "/=") {
+        bloc->addInstruction(new IRInstrDiv(bloc, tmp, lhs, rhs));
+    } else if (op == "%=") {
+        bloc->addInstruction(new IRInstrMod(bloc, tmp, lhs, rhs));
+    } else {
+        throw std::runtime_error("L'opérateur n'est pas supporté: " + op);
+    }
+    return tmp;
+}
 }
 
 IRVisitor::IRVisitor(SymbolTable* symbolTable, const std::map<std::string, SymbolTable>& funcTables)
@@ -106,15 +126,42 @@ antlrcpp::Any IRVisitor::visitPointer_prefix(ifccParser::Pointer_prefixContext* 
 
 antlrcpp::Any IRVisitor::visitAssign_stmt(ifccParser::Assign_stmtContext* ctx) {
     std::string lhsDesc = std::any_cast<std::string>(visit(ctx->lvalue()));
-    std::string tmp = std::any_cast<std::string>(visit(ctx->rhs()));
+    std::string rhsTmp = std::any_cast<std::string>(visit(ctx->rhs()));
+    std::string op = ctx->assign_op()->getText();
     auto* bloc = currentCFG->getCurrentBasicBloc();
 
+
+    // Cas simple : a = b : on a déjà évalué rhs dans rhsTmp et il faut juste l'écrire dans la destination
+    if (op == "=") {
+        if (lhsDesc.rfind("var:", 0) == 0) {
+            std::string varName = lhsDesc.substr(4);
+            bloc->addInstruction(new IRInstrCopy(bloc, varName, rhsTmp));
+        } else if (lhsDesc.rfind("ptr:", 0) == 0) {
+            std::string addrPtr = lhsDesc.substr(4);
+            bloc->addInstruction(new IRInstrStoreIndirect(bloc, rhsTmp, addrPtr));
+        } else {
+            throw std::runtime_error("Unexpected lvalue descriptor in assignment: " + lhsDesc);
+        }
+
+        return 0;
+    }
+
+    // Cas des affectations composées : a op= b   <=>   a = a op b
+    // Récupérer l'ancienne valeur de la destination a
+    // Calculer et réecrire le résultat du calcul dans la même destination
+
     if (lhsDesc.rfind("var:", 0) == 0) {
+        // Si on a une simple variable
         std::string varName = lhsDesc.substr(4);
-        bloc->addInstruction(new IRInstrCopy(bloc, varName, tmp));
+        std::string resultTmp = buildCompoundAssignmentValue(currentCFG, bloc, op, varName, rhsTmp); // resultTmp = a op b
+        bloc->addInstruction(new IRInstrCopy(bloc, varName, resultTmp)); // on réécrit la valeur calculée dans a
     } else if (lhsDesc.rfind("ptr:", 0) == 0) {
+        // Si on doit déréférencer le résultat
         std::string addrPtr = lhsDesc.substr(4);
-        bloc->addInstruction(new IRInstrStoreIndirect(bloc, tmp, addrPtr));
+        std::string lhsTmp = currentCFG->newTemp();
+        bloc->addInstruction(new IRInstrLoadIndirect(bloc, lhsTmp, addrPtr)); // charger l'ancienne valeur de *p dans un temp
+        std::string resultTmp = buildCompoundAssignmentValue(currentCFG, bloc, op, lhsTmp, rhsTmp); // resultTmp = lhsTmp op rhsTmp
+        bloc->addInstruction(new IRInstrStoreIndirect(bloc, resultTmp, addrPtr)); // stocker le résultat à l'adresse addrPtr
     } else {
         throw std::runtime_error("Unexpected lvalue descriptor in assignment: " + lhsDesc);
     }
@@ -310,7 +357,17 @@ antlrcpp::Any IRVisitor::visitExpr_addrof(ifccParser::Expr_addrofContext* ctx) {
 
 antlrcpp::Any IRVisitor::visitExpr_deref(ifccParser::Expr_derefContext* ctx) {
     std::string addrPtr = std::any_cast<std::string>(visit(ctx->rhs()));
-    std::string tmp = currentCFG->newTemp();
+
+    // Déterminer le type de la déréférence
+    std::string addrPtrType = currentCFG->getSymbolTable()->getType(addrPtr);
+    std::string resultType = "int"; // type par défaut
+
+    // Enlever un "*" du type pour obtenir le type du résultat
+    if (addrPtrType.length() > 0 && addrPtrType.back() == '*') {
+        resultType = addrPtrType.substr(0, addrPtrType.length() - 1);
+    }
+
+    std::string tmp = currentCFG->newTemp(resultType);
     auto* bloc = currentCFG->getCurrentBasicBloc();
     bloc->addInstruction(new IRInstrLoadIndirect(bloc, tmp, addrPtr));
     return tmp;
@@ -392,10 +449,11 @@ antlrcpp::Any IRVisitor::visitWhile_stmt(ifccParser::While_stmtContext* ctx) {
     currentCFG->setCurrentBasicBloc(condBloc);
 
     std::string condTmp = std::any_cast<std::string>(visit(ctx->rhs()));
+    IRBasicBloc* condExitBloc = currentCFG->getCurrentBasicBloc();
 
-    condBloc->setTestVarName(condTmp);
-    condBloc->setExitTrue(bodyBloc);
-    condBloc->setExitFalse(endBloc);
+    condExitBloc->setTestVarName(condTmp);
+    condExitBloc->setExitTrue(bodyBloc);
+    condExitBloc->setExitFalse(endBloc);
 
     currentCFG->setCurrentBasicBloc(bodyBloc);
     loopStack.push_back({condBloc, endBloc});
@@ -418,12 +476,10 @@ antlrcpp::Any IRVisitor::visitWhile_stmt(ifccParser::While_stmtContext* ctx) {
 
 antlrcpp::Any IRVisitor::visitIf_stmt(ifccParser::If_stmtContext *ctx)
 {
-    int ifId = ifCounter++;
-
     IRBasicBloc* currentTestBloc = currentCFG->getCurrentBasicBloc();
 
-    // Nouvelle grammaire: une seule condition, une seule instruction/ bloc then, optionnellement un else
-    bool hasElse = (ctx->stmt().size() > 1);
+    // Nouvelle grammaire: le then est un branch_body, le else eventuel est un else_branch.
+    bool hasElse = (ctx->else_branch() != nullptr);
 
     IRBasicBloc* thenBloc = currentCFG->addBasicBlocUnique(".then_");
     IRBasicBloc* elseBloc = hasElse ? currentCFG->addBasicBlocUnique(".else_") : nullptr;
@@ -431,13 +487,14 @@ antlrcpp::Any IRVisitor::visitIf_stmt(ifccParser::If_stmtContext *ctx)
 
     // Test
     std::string testVarName = std::any_cast<std::string>(visit(ctx->rhs()));
-    currentTestBloc->setTestVarName(testVarName);
-    currentTestBloc->setExitTrue(thenBloc);
-    currentTestBloc->setExitFalse(hasElse ? elseBloc : exitBloc);
+    IRBasicBloc* testExitBloc = currentCFG->getCurrentBasicBloc();
+    testExitBloc->setTestVarName(testVarName);
+    testExitBloc->setExitTrue(thenBloc);
+    testExitBloc->setExitFalse(hasElse ? elseBloc : exitBloc);
 
     // Then
     currentCFG->setCurrentBasicBloc(thenBloc);
-    visit(ctx->stmt(0));
+    visit(ctx->branch_body());
     if (currentCFG->getCurrentBasicBloc()->getExitTrue() == nullptr &&
         currentCFG->getCurrentBasicBloc()->getExitFalse() == nullptr) {
         currentCFG->getCurrentBasicBloc()->setExitTrue(exitBloc);
@@ -446,7 +503,7 @@ antlrcpp::Any IRVisitor::visitIf_stmt(ifccParser::If_stmtContext *ctx)
     // Else (si présent)
     if (hasElse) {
         currentCFG->setCurrentBasicBloc(elseBloc);
-        visit(ctx->stmt(1));
+        visit(ctx->else_branch());
         if (currentCFG->getCurrentBasicBloc()->getExitTrue() == nullptr &&
             currentCFG->getCurrentBasicBloc()->getExitFalse() == nullptr) {
             currentCFG->getCurrentBasicBloc()->setExitTrue(exitBloc);
@@ -467,27 +524,29 @@ antlrcpp::Any IRVisitor::visitSwitch_stmt(ifccParser::Switch_stmtContext* ctx) {
     // Bloc de sortie du switch
     IRBasicBloc* endSwitch = currentCFG->addBasicBlocUnique("after_switch");
 
-    // Blocs pour faire les comparaisons
+    std::vector<ifccParser::Switch_caseContext*> orderedCases;
     std::vector<IRBasicBloc*> testBlocs;
+    std::vector<IRBasicBloc*> clauseBlocs;
+    std::vector<bool> isDefaultClause;
+    int defaultClauseIndex = -1;
 
-    // Blocs pour les codes à exécuter pour chaque case
-    std::vector<IRBasicBloc*> caseBlocs;
-
-    for (size_t i = 0; i < ctx->switch_case().size(); ++i) {
-        testBlocs.push_back(currentCFG->addBasicBlocUnique("switch_test"));
-        caseBlocs.push_back(currentCFG->addBasicBlocUnique("switch_case"));
-    }
-
-    // Bloc default si il existe
-    IRBasicBloc* defaultBloc = nullptr;
-    if (ctx->switch_default() != nullptr) {
-        defaultBloc = currentCFG->addBasicBlocUnique("switch_default");
+    for (auto* clause : ctx->switch_clause()) {
+        if (auto* switchCase = clause->switch_case()) {
+            orderedCases.push_back(switchCase);
+            testBlocs.push_back(currentCFG->addBasicBlocUnique("switch_test"));
+            clauseBlocs.push_back(currentCFG->addBasicBlocUnique("switch_case"));
+            isDefaultClause.push_back(false);
+        } else {
+            clauseBlocs.push_back(currentCFG->addBasicBlocUnique("switch_default"));
+            isDefaultClause.push_back(true);
+            defaultClauseIndex = static_cast<int>(clauseBlocs.size()) - 1;
+        }
     }
 
     if (!testBlocs.empty()) {
         entryBloc->setExitTrue(testBlocs.front());
-    } else if (defaultBloc != nullptr) {
-        entryBloc->setExitTrue(defaultBloc);
+    } else if (defaultClauseIndex != -1) {
+        entryBloc->setExitTrue(clauseBlocs[defaultClauseIndex]);
     } else {
         entryBloc->setExitTrue(endSwitch);
     }
@@ -497,7 +556,7 @@ antlrcpp::Any IRVisitor::visitSwitch_stmt(ifccParser::Switch_stmtContext* ctx) {
     // Chaque bloc de test vérifie si la valeur du switch correspond à un case
     for (size_t i = 0; i < testBlocs.size(); ++i) {
         currentCFG->setCurrentBasicBloc(testBlocs[i]);
-        auto* switchCase = ctx->switch_case(i);
+        auto* switchCase = orderedCases[i];
         std::string caseValueTmp = std::any_cast<std::string>(visit(switchCase->switch_value()));
 
         // cmpTmp vaut 1 si switchTmp == caseValueTmp, sinon 0
@@ -506,7 +565,15 @@ antlrcpp::Any IRVisitor::visitSwitch_stmt(ifccParser::Switch_stmtContext* ctx) {
         testBlocs[i]->setTestVarName(cmpTmp);
 
         // Si la comparaison est vraie, on exécute le code du case
-        testBlocs[i]->setExitTrue(caseBlocs[i]);
+        size_t clauseIndex = 0;
+        size_t seenCases = 0;
+        for (; clauseIndex < isDefaultClause.size(); ++clauseIndex) {
+            if (!isDefaultClause[clauseIndex]) {
+                if (seenCases == i) break;
+                seenCases++;
+            }
+        }
+        testBlocs[i]->setExitTrue(clauseBlocs[clauseIndex]);
 
         IRBasicBloc* falseDest = nullptr;
 
@@ -514,9 +581,9 @@ antlrcpp::Any IRVisitor::visitSwitch_stmt(ifccParser::Switch_stmtContext* ctx) {
         if (i + 1 < testBlocs.size()) {
             // Si le test du case courant échoue et qu’il y a un autre case après on teste le suivant.
             falseDest = testBlocs[i + 1];
-        } else if (defaultBloc != nullptr) {
+        } else if (defaultClauseIndex != -1) {
             // Si aucun case n'a matché jusque-là on va sur default s'il existe
-            falseDest = defaultBloc;
+            falseDest = clauseBlocs[defaultClauseIndex];
         } else {
             // Sinon c'est qu'aucune case ne correspond et on sort du switch
             falseDest = endSwitch;
@@ -524,40 +591,29 @@ antlrcpp::Any IRVisitor::visitSwitch_stmt(ifccParser::Switch_stmtContext* ctx) {
         testBlocs[i]->setExitFalse(falseDest);
     }
 
-    // Chaque bloc case contient les instructions du case correspondant
-    for (size_t i = 0; i < caseBlocs.size(); ++i) {
-        currentCFG->setCurrentBasicBloc(caseBlocs[i]);
+    // Chaque clause tombe sur la suivante en absence de break/return.
+    size_t caseIndex = 0;
+    for (size_t i = 0; i < clauseBlocs.size(); ++i) {
+        currentCFG->setCurrentBasicBloc(clauseBlocs[i]);
 
-        for (auto* stmt : ctx->switch_case(i)->stmt()) {
-            visit(stmt);
+        if (isDefaultClause[i]) {
+            for (auto* stmt : ctx->switch_clause(i)->switch_default()->stmt()) {
+                visit(stmt);
+            }
+        } else {
+            for (auto* stmt : orderedCases[caseIndex]->stmt()) {
+                visit(stmt);
+            }
+            caseIndex++;
         }
 
-        // Le dernier bloc du case peut être différent si des sous-blocs ont été créés
         IRBasicBloc* tailBloc = currentCFG->getCurrentBasicBloc();
         if (tailBloc->getExitTrue() == nullptr && tailBloc->getExitFalse() == nullptr) {
-            if (i + 1 < caseBlocs.size()) {
-                // Si on n'a pas de break ni de return, on continue dans le case suivant
-                tailBloc->setExitTrue(caseBlocs[i + 1]);
-            } else if (defaultBloc != nullptr) {
-                // Une fois qu'on atteint le dernier case on continue dans default s'il existe
-                tailBloc->setExitTrue(defaultBloc);
+            if (i + 1 < clauseBlocs.size()) {
+                tailBloc->setExitTrue(clauseBlocs[i + 1]);
             } else {
-                // Sinon c'est qu'on a fini le switch
                 tailBloc->setExitTrue(endSwitch);
             }
-        }
-    }
-
-    if (defaultBloc != nullptr) {
-        // Le bloc default est atteint si aucun case ne correspond ou si le dernier case tombe dedans sans break
-        currentCFG->setCurrentBasicBloc(defaultBloc);
-        for (auto* stmt : ctx->switch_default()->stmt()) {
-            visit(stmt);
-        }
-
-        IRBasicBloc* tailBloc = currentCFG->getCurrentBasicBloc();
-        if (tailBloc->getExitTrue() == nullptr && tailBloc->getExitFalse() == nullptr) {
-            tailBloc->setExitTrue(endSwitch); // Default mène à la fin du switch.
         }
     }
 
@@ -570,8 +626,8 @@ antlrcpp::Any IRVisitor::visitSwitch_stmt(ifccParser::Switch_stmtContext* ctx) {
 antlrcpp::Any IRVisitor::visitSwitch_value(ifccParser::Switch_valueContext* ctx) {
     int val = 0;
 
-    if (ctx->CONST() != nullptr) {
-        val = std::stoi(ctx->CONST()->getText());
+    if (ctx->CHARCONST() == nullptr) {
+        val = std::stoi(ctx->getText());
     } else {
         val = parseCharLiteralValue(ctx->CHARCONST()->getText());
     }
@@ -614,6 +670,31 @@ antlrcpp::Any IRVisitor::visitExpr_putchar(ifccParser::Expr_putcharContext* ctx)
     return tmp;
 }
 
+antlrcpp::Any IRVisitor::visitPutchar_stmt(ifccParser::Putchar_stmtContext* ctx) {
+    std::string arg;
+    auto* bloc = currentCFG->getCurrentBasicBloc();
+    auto* ioArg = ctx->io_arg();
+
+    if (ioArg->CONST()) {
+        arg = currentCFG->newTemp();
+        bloc->addInstruction(new IRInstrConst(bloc, arg, std::stoi(ioArg->CONST()->getText())));
+    } else if (ioArg->CHARCONST()) {
+        std::string text = ioArg->CHARCONST()->getText();
+        int val = text[text[1] == '\\' ? 2 : 1];
+        arg = currentCFG->newTemp();
+        bloc->addInstruction(new IRInstrConst(bloc, arg, val));
+    } else if (ioArg->ID()) {
+        arg = ioArg->ID()->getText();
+    } else {
+        arg = currentCFG->newTemp();
+        bloc->addInstruction(new IRInstrGetchar(bloc, arg));
+    }
+
+    std::string tmp = currentCFG->newTemp();
+    bloc->addInstruction(new IRInstrPutchar(bloc, tmp, arg));
+    return 0;
+}
+
 antlrcpp::Any IRVisitor::visitFunction(ifccParser::FunctionContext* ctx) {
     std::string funcName = ctx->ID()->getText();
 
@@ -627,7 +708,7 @@ antlrcpp::Any IRVisitor::visitFunction(ifccParser::FunctionContext* ctx) {
 
     symbolTable->addSymbol("!retval"); // Valeur de retour
     epilogueBloc = currentCFG->addBasicBloc("." + funcName + "_exit");
-    
+
     if (ctx->paramList()) {
         auto* paramList = ctx->paramList();
         for (size_t i = 0; i < paramList->ID().size(); i++) {
@@ -667,4 +748,111 @@ antlrcpp::Any IRVisitor::visitRhsList(ifccParser::RhsListContext* ctx) {
         args.push_back(arg);
     }
     return args;
+}
+
+antlrcpp::Any IRVisitor::visitExpr_land(ifccParser::Expr_landContext *ctx) {
+    // Variable contenant le résultat de (a && b)
+    std::string res = currentCFG->newTemp("int");
+
+    // Le bloc courant calcule la partie gauche (a) puis branche vers l'évaluation de droite si besoin.
+    IRBasicBloc* evalLeftEntry = currentCFG->getCurrentBasicBloc();
+    IRBasicBloc* evalRightBloc = currentCFG->addBasicBlocUnique("land_rhs");
+
+    // Blocs pour fixer le résultat à 0 si False et 1 si True
+    IRBasicBloc* setFalseBloc  = currentCFG->addBasicBlocUnique("land_false");
+    IRBasicBloc* setTrueBloc   = currentCFG->addBasicBlocUnique("land_true");
+
+    // Bloc où on continue après l'expression
+    IRBasicBloc* afterExprBloc = currentCFG->addBasicBlocUnique("land_after");
+
+    // Visiter l'expression de gauche a
+    std::string leftVar = std::any_cast<std::string>(visit(ctx->rhs(0)));
+    IRBasicBloc* evalLeftExit = currentCFG->getCurrentBasicBloc();
+
+    // Si l'évaluation de a donne faux, on saute directement vers false sans évaluer b.
+    // Quand a est elle-même une expression paresseuse, le bloc à brancher est son bloc de sortie réel.
+    evalLeftExit->setTestVarName(leftVar);
+    evalLeftExit->setExitTrue(evalRightBloc);
+    evalLeftExit->setExitFalse(setFalseBloc);
+
+    // On bascule dans le bloc pour évaluer l'expression b
+    currentCFG->setCurrentBasicBloc(evalRightBloc);
+
+    std::string rightVar = std::any_cast<std::string>(visit(ctx->rhs(1)));
+    IRBasicBloc* evalRightExit = currentCFG->getCurrentBasicBloc();
+
+    // Si b contient elle-même un || ou un &&, il faut brancher depuis son bloc de sortie
+    // effectif plutôt que depuis le bloc d'entrée.
+    evalRightExit->setTestVarName(rightVar);
+    evalRightExit->setExitTrue(setTrueBloc);
+    evalRightExit->setExitFalse(setFalseBloc);
+
+
+    // Bloc résultat faux (res = 0)
+    currentCFG->setCurrentBasicBloc(setFalseBloc);
+    setFalseBloc->addInstruction(new IRInstrConst(setFalseBloc, res, 0));
+    setFalseBloc->setExitTrue(afterExprBloc);
+
+    // Bloc résultat vrai (res = 1)
+    currentCFG->setCurrentBasicBloc(setTrueBloc);
+    setTrueBloc->addInstruction(new IRInstrConst(setTrueBloc, res, 1));
+    setTrueBloc->setExitTrue(afterExprBloc);
+
+    // Reprise vers la suite du programme après l'expression
+    currentCFG->setCurrentBasicBloc(afterExprBloc);
+
+    return res;
+}
+
+antlrcpp::Any IRVisitor::visitExpr_lor(ifccParser::Expr_lorContext *ctx) {
+    // Variable contenant le résultat de (a || b)
+    std::string res = currentCFG->newTemp("int");
+
+    // Le bloc courant calcule la partie gauche (a) puis court-circuite vers true si besoin.
+    IRBasicBloc* evalLeftEntry = currentCFG->getCurrentBasicBloc();
+    IRBasicBloc* evalRightBloc = currentCFG->addBasicBlocUnique("land_rhs");
+
+    // Blocs pour fixer le résultat à 0 si False et 1 si True
+    IRBasicBloc* setFalseBloc  = currentCFG->addBasicBlocUnique("land_false");
+    IRBasicBloc* setTrueBloc   = currentCFG->addBasicBlocUnique("land_true");
+
+    // Bloc où on continue après l'expression
+    IRBasicBloc* afterExprBloc = currentCFG->addBasicBlocUnique("land_after");
+
+    // Visiter l'expression de gauche a
+    std::string leftVar = std::any_cast<std::string>(visit(ctx->rhs(0)));
+    IRBasicBloc* evalLeftExit = currentCFG->getCurrentBasicBloc();
+
+    // Si a vaut vrai on saute directement vers true sans évaluer b.
+    evalLeftExit->setTestVarName(leftVar);
+    evalLeftExit->setExitTrue(setTrueBloc);
+    evalLeftExit->setExitFalse(evalRightBloc);
+
+    // On bascule dans le bloc pour évaluer l'expression b
+    currentCFG->setCurrentBasicBloc(evalRightBloc);
+    std::string rightVar = std::any_cast<std::string>(visit(ctx->rhs(1)));
+    IRBasicBloc* evalRightExit = currentCFG->getCurrentBasicBloc();
+
+
+
+    // On branche depuis le vrai bloc de sortie de b.
+    evalRightExit->setTestVarName(rightVar);
+    evalRightExit->setExitTrue(setTrueBloc);
+    evalRightExit->setExitFalse(setFalseBloc);
+
+
+    // Bloc résultat faux (res = 0)
+    currentCFG->setCurrentBasicBloc(setFalseBloc);
+    setFalseBloc->addInstruction(new IRInstrConst(setFalseBloc, res, 0));
+    setFalseBloc->setExitTrue(afterExprBloc);
+
+    // Bloc résultat vrai (res = 1)
+    currentCFG->setCurrentBasicBloc(setTrueBloc);
+    setTrueBloc->addInstruction(new IRInstrConst(setTrueBloc, res, 1));
+    setTrueBloc->setExitTrue(afterExprBloc);
+
+    // Reprise vers la suite du programme après l'expression
+    currentCFG->setCurrentBasicBloc(afterExprBloc);
+
+    return res;
 }

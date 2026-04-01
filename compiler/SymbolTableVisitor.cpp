@@ -63,10 +63,21 @@ antlrcpp::Any SymbolTableVisitor::visitPointer_prefix(ifccParser::Pointer_prefix
 
 
 antlrcpp::Any SymbolTableVisitor::visitAssign_stmt(ifccParser::Assign_stmtContext *ctx) {
-    // Vérifie que le type de l'expression à droite est compatible avec le type de la variable à gauche
     std::string lhsType = std::any_cast<std::string>(visit(ctx->lvalue()));
     std::string rhsType = std::any_cast<std::string>(visit(ctx->rhs()));
-    requireType(rhsType, lhsType, "assignation");
+    std::string op = ctx->assign_op()->getText();
+
+    if (op == "=") {
+        requireType(rhsType, lhsType, "assignation");
+        return 0;
+    }
+
+    // a op= b est vérifiée comme d'abord "a op b" puis réaffectation du résultat dans a.
+    // Autrement dit  a = a op b
+
+    // Pour le moment, on ne prend en charge que les int (pas d'arithmétique des pointeurs)
+    requireType(lhsType, "int", "operande gauche de " + op);
+    requireType(rhsType, "int", "operande droit de " + op);
 
     return 0;
 }
@@ -212,6 +223,16 @@ antlrcpp::Any SymbolTableVisitor::visitExpr_putchar(ifccParser::Expr_putcharCont
     return std::string("int");
 }
 
+antlrcpp::Any SymbolTableVisitor::visitPutchar_stmt(ifccParser::Putchar_stmtContext *ctx) {
+    auto* ioArg = ctx->io_arg();
+    if (ioArg->ID()) {
+        std::string varName = ioArg->ID()->getText();
+        checkVariableUsed(varName);
+        requireType(symbolTable.getType(varName), "int", "argument de putchar");
+    }
+    return 0;
+}
+
 antlrcpp::Any SymbolTableVisitor::visitExpr_addrof(ifccParser::Expr_addrofContext *ctx) {
     std::string baseType = std::any_cast<std::string>(visit(ctx->lvalue()));
     return addPointerLevel(baseType);
@@ -306,25 +327,31 @@ antlrcpp::Any SymbolTableVisitor::visitSwitch_stmt(ifccParser::Switch_stmtContex
     requireType(switchType, "int", "expression pour switch");
 
     std::set<int> seenCaseValues;
-    for (auto* switchCase : ctx->switch_case()) {
-        int caseValue = std::any_cast<int>(visit(switchCase->switch_value()));
-        if (seenCaseValues.count(caseValue) > 0) {
-            throw std::runtime_error("Erreur : cette valeur de case est déjà rencontrée dans le switch");
-        }
-        seenCaseValues.insert(caseValue);
-        visit(switchCase);
-    }
+    bool seenDefault = false;
 
-    if (ctx->switch_default() != nullptr) {
-        visit(ctx->switch_default());
+    for (auto* clause : ctx->switch_clause()) {
+        if (auto* switchCase = clause->switch_case()) {
+            int caseValue = std::any_cast<int>(visit(switchCase->switch_value()));
+            if (seenCaseValues.count(caseValue) > 0) {
+                throw std::runtime_error("Erreur : cette valeur de case est déjà rencontrée dans le switch");
+            }
+            seenCaseValues.insert(caseValue);
+            visit(switchCase);
+        } else {
+            if (seenDefault) {
+                throw std::runtime_error("Erreur : plusieurs labels default dans le meme switch");
+            }
+            seenDefault = true;
+            visit(clause->switch_default());
+        }
     }
 
     return 0;
 }
 
 antlrcpp::Any SymbolTableVisitor::visitSwitch_value(ifccParser::Switch_valueContext *ctx) {
-    if (ctx->CONST() != nullptr) {
-        return std::stoi(ctx->CONST()->getText());
+    if (ctx->CHARCONST() == nullptr) {
+        return std::stoi(ctx->getText());
     }
 
     if (ctx->CHARCONST() != nullptr) {
