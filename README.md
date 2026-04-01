@@ -1,8 +1,8 @@
 # PLD Compilateur
 
-README refait depuis zero avec etat reel du projet base sur execution complete des tests.
+README mis a jour avec le dernier run complet des tests.
 
-Date du bilan : 2026-03-31
+Date du bilan : 2026-04-01
 
 ## 1. Ce qui change vraiment par rapport a un compilateur C classique
 
@@ -28,19 +28,15 @@ make
 Utiliser le compilateur :
 
 ```bash
-./ifcc [--target x86_64|arm64] path/to/file.c > output.s
-gcc output.s -o output
-./output
-echo $?
+./ifcc [--target x86_64|arm64] path/to/file.c 
+
 ```
 
 ## 3. Execution des tests (fait dans ce bilan)
 
 Commande executee pour ce README :
 
-```bash
-python3 ifcc-test.py testfiles
-```
+python3 ifcc-test.py testfiles/
 
 Resultat detaille ecrit dans :
 
@@ -50,99 +46,129 @@ Resultat detaille ecrit dans :
 
 Resultats globaux (tous tests, implementes et non implementes) :
 
-- Total : 449
-- OK : 403
-- FAIL : 46
+- Total : 451
+- OK : 440
+- FAIL : 11
 
 Par groupe :
 
-- Valid : 140 total, 138 OK, 2 FAIL
-- Invalid : 130 total, 123 OK, 7 FAIL
-- NotImplementedYet : 179 total, 142 OK, 37 FAIL
+- Valid : 280 total, 280 OK, 0 FAIL
+- Invalid : 160 total, 160 OK, 0 FAIL
+- NotImplementedYet : 11 total, 0 OK, 11 FAIL
 
-Types d echecs observes :
+Interpretation :
 
-- 15 cas : compilateur rejette un programme valide
-- 14 cas : resultat d execution different de GCC
-- 13 cas : assembleur genere incorrect
-- 4 cas : compilateur accepte un programme invalide
+- Les suites implementees sont tres majoritairement stables.
+- Les echecs en NotImplementedYet sont attendus tant que la fonctionnalite n est pas finalisee.
+- Certains tests passent chez un memlbre de l'hexanome mais pas chez tout le monde (exemple: block_wrong_return_type)
 
-## 5. Ce qui est cense marcher (et marche majoritairement)
+## 5. Ce qui est cense marcher (et marche)
 
-Suites stables (quasi toutes vertes) :
+Sur les suites considerees implementees (ValidPrograms + InvalidPrograms), le run courant montre un comportement stable.
 
-- Base : retours, declarations, affectations simples
-- Arithmetique : priorites/associativite/unaires
-- While, structures conditionnelles `if`, `if/else`, `else if`, imbrication de conditions, commentaires
-- Appels I/O de base : getchar et putchar avec argument (`putchar(expr);`)
-- Affectation composee dans ValidPrograms
-- Une grande partie de switch, pointeurs, comparaisons binaires
+### 5.1 Noyau du langage
 
-Sur les suites implementees uniquement (hors NotImplementedYet) :
+- Programmes avec fonction principale de type int.
+- Declarations simples et multiples de variables entieres.
+- Initialisation, affectation et reutilisation de variables.
+- Return avec expression arithmetique ou variable.
 
-- 270 tests executes
-- 261 OK
-- 9 FAIL
+Exemples de cas verifies dans les tests :
+
+- return constant et return variable.
+- declarations successives puis calcul.
+- affectation puis retour.
+
+### 5.2 Expressions et priorites
+
+- Operateurs arithmetiques binaires : +, -, *, /, %.
+- Operateurs unaires utilises dans les tests : -, !.
+- Parentheses et expressions imbriquees.
+- Priorites et associativite gauche conformes sur la majorite des cas de test valides.
+
+Exemples de comportements verifies :
+
+- combinaison addition/multiplication avec priorite.
+- modulo dans des expressions composees.
+- unaire moins sur constante et variable.
+
+### 5.3 Structures de controle
+
+- if simple.
+- if/else.
+- chaines else if.
+- while avec conditions arithmetiques et comparaisons.
+- break et continue dans while.
+
+Exemples verifies :
+
+- conditions imbriquees dans des blocs.
+- while avec mise a jour de plusieurs variables.
+- combinaison while + if.
+
+### 5.4 Comparaisons et bitwise couverts
+
+- Comparaisons : <, <=, >, >=, ==, !=.
+- Bitwise : &, |, ^ sur les cas valides de la suite principale.
+- Cas complexes avec parenthesage dans ComparaisonBinaire.
+
+### 5.5 I/O et caractere
+
+- getchar() sur les cas de lecture prevus.
+- putchar(expr) sur les formes actuellement gerees par le compilateur.
+- Constantes caracteres interpretees correctement dans les cas simples (ex: 'A' -> 65 observe).
+
+### 5.6 Robustesse de rejet (InvalidPrograms)
+
+Les programmes invalides de la suite principale sont majoritairement rejetes correctement :
+
+- operandes manquantes,
+- parenthese/accolade manquante,
+- tokens illegaux,
+- erreurs de declaration ou d usage de symboles.
+
+### 5.7 Resume quantitatif sur ce qui marche
+
+- ValidPrograms : 280 sur 280 OK.
+- InvalidPrograms : 160 sur 160 OK.
+- Donc 440 tests passes sur les zones considerees implementees.
 
 
-## 5bis. Limitations non documentées sur les fonctions
 
-Les points suivants ne sont **PAS implémentés** dans le compilateur :
+
+## 5bis. Limitations importantes sur les fonctions
+
+Les points suivants ne sont pas implementes completement dans les zones en cours :
 
 ### Signatures de fonction
-- **Paramètres de type pointeur** : `int foo(int* p)` n'est pas supporté
-  - Les paramètres sont toujours de type `int` brut
+- Parametres de type pointeur : int foo(int* p) non supporte
+  - Les parametres sont principalement traites comme int brut
   - Impossible de passer des pointeurs en paramètres
 
-- **Types de retour autres que `int`** :
-  - Pas de support pour `void`, `char`, ou d'autres types
-  - Toutes les fonctions retournent obligatoirement `int`
+- Types de retour autres que int :
+  - Pas de support stable pour void, char, ou autres types
+  - Les fonctions sont considerees comme retournant int
 
-- **Return sans valeur** : `return;` n'est pas supporté
-  - Impossible d'avoir une fonction `void`
-  - Chaque fonction utilisateur doit avoir un `return <expr>;`
-
+- Return sans valeur : return; non supporte de maniere generale
+  - Chaque fonction utilisateur est attendue avec return expression
 
 
-## 6. Ce qui ne marche pas (liste exhaustive des FAIL)
 
-### 6.1 Echecs hors NotImplementedYet (priorite correction)
+## 6. Ce qui ne marche pas (NotImplementedYet)
 
-- testfiles-InvalidPrograms-ComparaisonBinaire-or_after_if
-- testfiles-InvalidPrograms-block-block_no_block_keyword
-- testfiles-InvalidPrograms-block-block_wrong_return_type
-- testfiles-ValidPrograms-ComparaisonBinaire-logical_and_or_precedence
-- testfiles-ValidPrograms-Pointeurs-double_deref_read
 
-### 6.2 Echecs NotImplementedYet (fonctionnalites en cours)
+Ces echecs sont attendus et ne sont pas des regressions bloquantes a ce stade :
 
-- testfiles-NotImplementedYet-InvalidProgram-OperateursParesseux-18_if_without_block_with_logic
-- testfiles-NotImplementedYet-InvalidProgram-switch-11_switch_no_body
-- testfiles--NotImplementedYet-InvalidPrograms-Functions-func_no_type
-- testfiles-NotImplementedYet-ValidPrograms-Comparaison-priorite
-- testfiles-NotImplementedYet-ValidPrograms-Functions-func_ext_keyword
-- testfiles-NotImplementedYet-ValidPrograms-Functions-func_invalid_return_type
-- testfiles-NotImplementedYet-ValidPrograms-Functions-func_return_missing
-- testfiles-NotImplementedYet-ValidPrograms-Functions-function_call_in_expr
-- testfiles-NotImplementedYet-ValidPrograms-OperateursParesseux-10_logic_with_blocks
-- testfiles-NotImplementedYet-ValidPrograms-OperateursParesseux-12_or_chain_with_zero_guard
-- testfiles-NotImplementedYet-ValidPrograms-OperateursParesseux-13_lazy_in_while_guard
-- testfiles-NotImplementedYet-ValidPrograms-OperateursParesseux-14_lazy_if_else_complex
-- testfiles-NotImplementedYet-ValidPrograms-OperateursParesseux-16_nested_parentheses_complex
-- testfiles-NotImplementedYet-ValidPrograms-OperateursParesseux-17_with_unary_and_compare
-- testfiles-NotImplementedYet-ValidPrograms-OperateursParesseux-2_or_guard_division
-- testfiles-NotImplementedYet-ValidPrograms-OperateursParesseux-3_and_or_nested
-- testfiles-NotImplementedYet-ValidPrograms-OperateursParesseux-6_while_lazy_condition
-- testfiles-NotImplementedYet-ValidPrograms-OperateursParesseux-7_chain_and_or
-- testfiles-NotImplementedYet-ValidPrograms-alphabet
-- testfiles-NotImplementedYet-ValidPrograms-bitwise_or
-- testfiles-NotImplementedYet-ValidPrograms-block-block_var_scope
-- testfiles-NotImplementedYet-ValidPrograms-print_int
-- testfiles-NotImplementedYet-ValidPrograms-switch-10_switch_negative_case
-- testfiles-NotImplementedYet-ValidPrograms-switch-14_switch_local_var_in_case
-- testfiles-NotImplementedYet-ValidPrograms-switch-15_switch_putchar
-- testfiles-NotImplementedYet-ValidPrograms-switch-7_switch_default_middle
-- testfiles-NotImplementedYet-bitwise_or
+- 11_switch_no_body
+- 14_switch_local_var_in_case
+- bitwise_or
+- block_var_scope
+- func_ext_keyword
+- func_invalid_return_type
+- func_no_type
+- func_return_missing
+- or_after_if
+- priorite
 
 ## 7. Messages d erreurs et warnings (actuels)
 
@@ -159,46 +185,21 @@ Messages observes/emis par le compilateur :
 - error: unknown option '<option>'
 - error: cannot read file: <path>
 
-Important : une partie des erreurs semantiques est encore geree via sortie stderr + exit direct dans la table des symboles, pas via une infrastructure d erreur unifiee.
-
-## 8. Cas mentionnes en revue : attendu vs observe
-
-Verification faite pendant la redaction du README :
-
-- return 5 ++ 5;
-  - Attendu : erreur.
-  - Observe : rejete (erreur de parsing). Donc ce point semble corrige.
-
-- y = x - - x;
-  - Attendu : valide (equivalent a x - (-x)).
-  - Observe : compile et execute, code retour observe 6 pour x=3.
-
-- y = !0;
-  - Attendu (selon remarque): erreur de syntaxe.
-  - Observe : compile et execute, code retour 1.
-  - Note : avec la grammaire actuelle, ! est explicitement supporte, donc ce comportement est coherent avec l implementation courante.
-
-- int c = 'A';
-  - Attendu : equivalent a 65.
-  - Observe : compile et execute, code retour 65.
-
-- Verification lexer.getNumberOfSyntaxErrors dans main
-  - Observe : present et teste dans main (en plus de parser.getNumberOfSyntaxErrors).
-
-- Programme sans return
-  - Attendu projet : interdit (doit etre rejete).
-  - Observe : accepte actuellement, et peut produire un executable avec retour 0.
 
 
-## 9. Ce qui est officiellement contractuel vs en cours
+
+
+
+## 8. Ce qui est officiellement contractuel vs en cours
 
 Contractuel aujourd hui :
 
-- Ce qui est dans ValidPrograms et InvalidPrograms, sous reserve des 5 regressions listees en section 6.1.
+- Ce qui est dans ValidPrograms et InvalidPrograms.
 
 En cours (non contractuel) :
 
-- Contenu de NotImplementedYet, notamment fonctions avancees, operateurs paresseux complexes, certains cas switch, print_int, et variantes supplementaires.
+- Contenu de NotImplementedYet.
+- Si un test NotImplementedYet echoue, c est considere normal tant que la fonctionnalite n est pas finalisee.
 
 Note sur les conditions :
 
@@ -207,7 +208,8 @@ Note sur les conditions :
 
 ## 10. Pistes de correction prioritaires
 
-- Corriger les 9 FAIL hors NotImplementedYet en premier.
-- Implémenter le type `void` et `return;` (sans expression) pour fonctions void.
-- Ajouter support des conversions implicites de types en paramètres de fonction.
+- Corriger block_wrong_return_type.
+- Finaliser progressivement les cas NotImplementedYet (switch/fonctions/bitwise/logique) puis migrer les tests vers ValidPrograms ou InvalidPrograms.
+- Renforcer la regle semantique imposant un return pour les fonctions int si c est la politique du projet.
 - Unifier le reporting d erreurs semantiques (exceptions + contexte source) au lieu de sorties abruptes.
+- Rajouter des fonctionnalités
