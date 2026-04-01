@@ -84,15 +84,31 @@ Sur les suites implementees uniquement (hors NotImplementedYet) :
 - 261 OK
 - 9 FAIL
 
+
+## 5bis. Limitations non documentées sur les fonctions
+
+Les points suivants ne sont **PAS implémentés** dans le compilateur :
+
+### Signatures de fonction
+- **Paramètres de type pointeur** : `int foo(int* p)` n'est pas supporté
+  - Les paramètres sont toujours de type `int` brut
+  - Impossible de passer des pointeurs en paramètres
+
+- **Types de retour autres que `int`** :
+  - Pas de support pour `void`, `char`, ou d'autres types
+  - Toutes les fonctions retournent obligatoirement `int`
+
+- **Return sans valeur** : `return;` n'est pas supporté
+  - Impossible d'avoir une fonction `void`
+  - Chaque fonction utilisateur doit avoir un `return <expr>;`
+
+
+
 ## 6. Ce qui ne marche pas (liste exhaustive des FAIL)
 
 ### 6.1 Echecs hors NotImplementedYet (priorite correction)
 
 - testfiles-InvalidPrograms-ComparaisonBinaire-or_after_if
-- testfiles-InvalidPrograms-Functions-func_no_type
-- testfiles-InvalidPrograms-Functions-func_too_few_args
-- testfiles-InvalidPrograms-Functions-func_too_many_args
-- testfiles-InvalidPrograms-Functions-func_undefined
 - testfiles-InvalidPrograms-block-block_no_block_keyword
 - testfiles-InvalidPrograms-block-block_wrong_return_type
 - testfiles-ValidPrograms-ComparaisonBinaire-logical_and_or_precedence
@@ -102,23 +118,12 @@ Sur les suites implementees uniquement (hors NotImplementedYet) :
 
 - testfiles-NotImplementedYet-InvalidProgram-OperateursParesseux-18_if_without_block_with_logic
 - testfiles-NotImplementedYet-InvalidProgram-switch-11_switch_no_body
+- testfiles--NotImplementedYet-InvalidPrograms-Functions-func_no_type
 - testfiles-NotImplementedYet-ValidPrograms-Comparaison-priorite
 - testfiles-NotImplementedYet-ValidPrograms-Functions-func_ext_keyword
 - testfiles-NotImplementedYet-ValidPrograms-Functions-func_invalid_return_type
 - testfiles-NotImplementedYet-ValidPrograms-Functions-func_return_missing
 - testfiles-NotImplementedYet-ValidPrograms-Functions-function_call_in_expr
-- testfiles-NotImplementedYet-ValidPrograms-Functions-function_default
-- testfiles-NotImplementedYet-ValidPrograms-Functions-function_expr_arg
-- testfiles-NotImplementedYet-ValidPrograms-Functions-function_multi
-- testfiles-NotImplementedYet-ValidPrograms-Functions-function_multi_param_expr
-- testfiles-NotImplementedYet-ValidPrograms-Functions-function_nested_call
-- testfiles-NotImplementedYet-ValidPrograms-Functions-function_no_param
-- testfiles-NotImplementedYet-ValidPrograms-Functions-function_order
-- testfiles-NotImplementedYet-ValidPrograms-Functions-function_param_chain
-- testfiles-NotImplementedYet-ValidPrograms-Functions-function_params_add
-- testfiles-NotImplementedYet-ValidPrograms-Functions-function_return_var
-- testfiles-NotImplementedYet-ValidPrograms-Functions-function_scope
-- testfiles-NotImplementedYet-ValidPrograms-Functions-function_simple_return
 - testfiles-NotImplementedYet-ValidPrograms-OperateursParesseux-10_logic_with_blocks
 - testfiles-NotImplementedYet-ValidPrograms-OperateursParesseux-12_or_chain_with_zero_guard
 - testfiles-NotImplementedYet-ValidPrograms-OperateursParesseux-13_lazy_in_while_guard
@@ -182,15 +187,14 @@ Verification faite pendant la redaction du README :
 
 - Programme sans return
   - Attendu projet : interdit (doit etre rejete).
-  - Observe : accepte actuellement, et peut produire un executable avec retour non contractuel (exemple observe a 0).
+  - Observe : accepte actuellement, et peut produire un executable avec retour 0.
 
-Conclusion sur ce point : la politique projet doit etre explicitee et enforcee semantiquement (au minimum, rejet des fonctions int sans return garanti).
 
 ## 9. Ce qui est officiellement contractuel vs en cours
 
 Contractuel aujourd hui :
 
-- Ce qui est dans ValidPrograms et InvalidPrograms, sous reserve des 9 regressions listees en section 6.1.
+- Ce qui est dans ValidPrograms et InvalidPrograms, sous reserve des 5 regressions listees en section 6.1.
 
 En cours (non contractuel) :
 
@@ -204,6 +208,6 @@ Note sur les conditions :
 ## 10. Pistes de correction prioritaires
 
 - Corriger les 9 FAIL hors NotImplementedYet en premier.
-- Rendre obligatoire un return valide pour les fonctions int.
+- Implémenter le type `void` et `return;` (sans expression) pour fonctions void.
+- Ajouter support des conversions implicites de types en paramètres de fonction.
 - Unifier le reporting d erreurs semantiques (exceptions + contexte source) au lieu de sorties abruptes.
-- Finaliser l implementation IR/backend des appels de fonctions utilisateur (source principale de FAIL en NotImplementedYet).
