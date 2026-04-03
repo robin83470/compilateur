@@ -1,215 +1,132 @@
 # PLD Compilateur
 
-README mis a jour avec le dernier run complet des tests.
+README technique du projet : etat des fonctionnalites, couverture de tests, limites connues.
 
-Date du bilan : 2026-04-01
 
-## 1. Ce qui change vraiment par rapport a un compilateur C classique
+## 1. Positionnement du compilateur
 
-Notre compilateur est volontairement un sous-ensemble de C, oriente TP, avec des choix differents d un compilateur industriel :
+Ce compilateur est un sous-ensemble de C, developpe pour un projet pedagogique.
 
-- Focus sur un sous-ensemble du langage (grammaire ANTLR + visiteurs IR).
-- Sortie directe en assembleur cible x86_64 ou arm64, pas de phases d optimisation avancees.
-- Verification semantique minimaliste mais explicite (types principalement int/int*).
-- Suite de tests structuree en trois blocs :
-  - ValidPrograms : comportement attendu stable.
-  - InvalidPrograms : programmes a rejeter.
-  - NotImplementedYet : fonctionnalites en cours, pas contractuelles.
+Différences majeures avec un compilateur C complet :
 
-## 2. Compilation et utilisation
+- couverture volontairement limitee a un noyau de langage ;
+- sorties assembleur ciblees (x86_64 / arm64) sans pipeline d optimisation avance ;
+- validation tres orientee tests fonctionnels du projet.
 
-Compiler le projet :
+## 2. Build et execution
+
+Compilation du compilateur :
 
 ```bash
 cd compiler
 make
 ```
 
-Utiliser le compilateur :
+Utilisation :
 
 ```bash
-./ifcc [--target x86_64|arm64] path/to/file.c 
-
+./ifcc [--target x86_64|arm64] path/to/file.c > output.s
+gcc output.s -o output
+./output
 ```
 
-## 3. Execution des tests (fait dans ce bilan)
+## 3. Campagne de tests utilisee pour ce README
 
-Commande executee pour ce README :
+Commande executee :
 
+```bash
 python3 ifcc-test.py testfiles/
+```
 
-Resultat detaille ecrit dans :
+Fichier de synthese :
 
 - test_results.csv
 
 ## 4. Bilan global des tests
 
-Resultats globaux (tous tests, implementes et non implementes) :
-
-- Total : 451
+- Total : 452
 - OK : 440
-- FAIL : 11
+- FAIL : 12
 
-Par groupe :
+Repartition :
 
-- Valid : 280 total, 280 OK, 0 FAIL
-- Invalid : 160 total, 160 OK, 0 FAIL
-- NotImplementedYet : 11 total, 0 OK, 11 FAIL
+- Valid : 280/280 OK
+- Invalid : 160/160 OK
+- NotImplementedYet : 0/12 OK
 
 Interpretation :
 
-- Les suites implementees sont tres majoritairement stables.
-- Les echecs en NotImplementedYet sont attendus tant que la fonctionnalite n est pas finalisee.
-- Certains tests passent chez un memlbre de l'hexanome mais pas chez tout le monde (exemple: block_wrong_return_type)
+- Les fonctionnalites considereees implementees (Valid/Invalid) sont stables.
+- Les 12 FAIL sont tous situes dans NotImplementedYet, donc attendus a ce stade.
 
-## 5. Ce qui est cense marcher (et marche)
+## 5. Couverture de tests actuelle
 
-Sur les suites considerees implementees (ValidPrograms + InvalidPrograms), le run courant montre un comportement stable.
+Volumes de tests C detectes :
 
-### 5.1 Noyau du langage
+- testfiles/ValidPrograms : 281 fichiers
+- testfiles/InvalidPrograms : 170 fichiers
+- testfiles/NotImplementedYet : 13 fichiers
 
-- Programmes avec fonction principale de type int.
-- Declarations simples et multiples de variables entieres.
-- Initialisation, affectation et reutilisation de variables.
-- Return avec expression arithmetique ou variable.
+Domaines principaux couverts par tests actifs :
 
-Exemples de cas verifies dans les tests :
+- Arithmetic
+- Unary
+- Comparaison / ComparaisonBinaire
+- if / while / switch / block
+- Pointeurs
+- FunctionCalls
+- AffectationComposee
+- OperateursParesseux
+- MultipleReturn
+- commentaire
 
-- return constant et return variable.
-- declarations successives puis calcul.
-- affectation puis retour.
+## 6. Ce qui marche (suites actives)
 
-### 5.2 Expressions et priorites
+Le run courant valide les points suivants dans les suites actives (ValidPrograms + InvalidPrograms) :
 
-- Operateurs arithmetiques binaires : +, -, *, /, %.
-- Operateurs unaires utilises dans les tests : -, !.
-- Parentheses et expressions imbriquees.
-- Priorites et associativite gauche conformes sur la majorite des cas de test valides.
+- declarations, affectations, retours ;
+- expressions arithmetiques et unaires ;
+- priorites et parenthesage sur les cas couverts ;
+- structures de controle if / else if / while / switch (cas actifs) ;
+- break / continue en boucle ;
+- comparaisons et bitwise sur les jeux de tests actifs ;
+- getchar / putchar sur les variantes testees ;
+- robustesse de rejet des programmes invalides (160/160).
 
-Exemples de comportements verifies :
+## 7. Ce qui ne marche pas encore (NotImplementedYet)
 
-- combinaison addition/multiplication avec priorite.
-- modulo dans des expressions composees.
-- unaire moins sur constante et variable.
-
-### 5.3 Structures de controle
-
-- if simple.
-- if/else.
-- chaines else if.
-- while avec conditions arithmetiques et comparaisons.
-- break et continue dans while.
-
-Exemples verifies :
-
-- conditions imbriquees dans des blocs.
-- while avec mise a jour de plusieurs variables.
-- combinaison while + if.
-
-### 5.4 Comparaisons et bitwise couverts
-
-- Comparaisons : <, <=, >, >=, ==, !=.
-- Bitwise : &, |, ^ sur les cas valides de la suite principale.
-- Cas complexes avec parenthesage dans ComparaisonBinaire.
-
-### 5.5 I/O et caractere
-
-- getchar() sur les cas de lecture prevus.
-- putchar(expr) sur les formes actuellement gerees par le compilateur.
-- Constantes caracteres interpretees correctement dans les cas simples (ex: 'A' -> 65 observe).
-
-### 5.6 Robustesse de rejet (InvalidPrograms)
-
-Les programmes invalides de la suite principale sont majoritairement rejetes correctement :
-
-- operandes manquantes,
-- parenthese/accolade manquante,
-- tokens illegaux,
-- erreurs de declaration ou d usage de symboles.
-
-### 5.7 Resume quantitatif sur ce qui marche
-
-- ValidPrograms : 280 sur 280 OK.
-- InvalidPrograms : 160 sur 160 OK.
-- Donc 440 tests passes sur les zones considerees implementees.
-
-
-
-
-## 5bis. Limitations importantes sur les fonctions
-
-Les points suivants ne sont pas implementes completement dans les zones en cours :
-
-### Signatures de fonction
-- Parametres de type pointeur : int foo(int* p) non supporte
-  - Les parametres sont principalement traites comme int brut
-  - Impossible de passer des pointeurs en paramètres
-
-- Types de retour autres que int :
-  - Pas de support stable pour void, char, ou autres types
-  - Les fonctions sont considerees comme retournant int
-
-- Return sans valeur : return; non supporte de maniere generale
-  - Chaque fonction utilisateur est attendue avec return expression
-
-
-
-## 6. Ce qui ne marche pas (NotImplementedYet)
-
-
-Ces echecs sont attendus et ne sont pas des regressions bloquantes a ce stade :
+Les echecs ci-dessous sont classes NotImplementedYet et donc non bloquants a ce stade :
 
 - 11_switch_no_body
 - 14_switch_local_var_in_case
 - bitwise_or
 - block_var_scope
+- block_wrong_return_type
 - func_ext_keyword
 - func_invalid_return_type
 - func_no_type
 - func_return_missing
 - or_after_if
+- print_int
 - priorite
-
-## 7. Messages d erreurs et warnings (actuels)
-
-Messages observes/emis par le compilateur :
-
-- error: syntax error during parsing
-- Erreur lexicale
-- Erreur : le symbole '<nom>' est deja declare.
-- Erreur : le symbole '<nom>' n'existe pas.
-- Erreur : type inconnu '<type>'.
-- Erreur de type (...)
-- Avertissement : la variable '<nom>' a ete declaree mais n est pas utilisee.
-- error: unsupported target '<valeur>' (expected x86_64 or arm64)
-- error: unknown option '<option>'
-- error: cannot read file: <path>
+- affecattions multiples (ex: a = b = 4;)
+- arithmétiques des pointeurs
+- Déréférencement récursif sur les pointeurs
+- Comparaison entre pointeurs non géré
+- include
+- les autres types que int/pointeurs de 'int'
+- les fonctions sans valeur de retour
+- structures de contrôle 'for', 'do ... while'
 
 
 
 
+## 8. Limites actuelles du compilateur
+
+- Couverture partielle du langage C (subset projet).
+- Plusieurs cas de fonctions utilisateur restent dans NotImplementedYet.
+- Signatures de fonctions non triviales encore incomplètes selon les cas.
+- Heterogeneite des diagnostics entre erreurs parser et erreurs semantiques.
 
 
-## 8. Ce qui est officiellement contractuel vs en cours
 
-Contractuel aujourd hui :
-
-- Ce qui est dans ValidPrograms et InvalidPrograms.
-
-En cours (non contractuel) :
-
-- Contenu de NotImplementedYet.
-- Si un test NotImplementedYet echoue, c est considere normal tant que la fonctionnalite n est pas finalisee.
-
-Note sur les conditions :
-
-- Les formes `if (...) stmt;`, `if (...) { ... }`, `if (...) ... else ...` et `else if (...) ...` sont prises en charge.
-- Les conditions imbriquees et l'utilisation de conditions a l'interieur de blocs ou de boucles sont egalement couvertes par les tests valides actuels.
-
-## 10. Pistes de correction prioritaires
-
-- Corriger block_wrong_return_type.
-- Finaliser progressivement les cas NotImplementedYet (switch/fonctions/bitwise/logique) puis migrer les tests vers ValidPrograms ou InvalidPrograms.
-- Renforcer la regle semantique imposant un return pour les fonctions int si c est la politique du projet.
-- Unifier le reporting d erreurs semantiques (exceptions + contexte source) au lieu de sorties abruptes.
-- Rajouter des fonctionnalités
